@@ -1,0 +1,16 @@
+Package: statgl
+Title: Statistics Greenland R package
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Emil",
+           family = "Malta",
+           role = c("aut", "cre"),
+           email = "emim@stat.gl",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Internal R package of Statistics Greenland. Consists of extensions for ggplot2 themes, with plans to include miscellaneous tools for table output, and tools for data wrangling. This is a development version; expect things to change.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Imports: 
+    ggplot2
