@@ -2,4 +2,5 @@
 
 export(scale_color_statgl)
 export(scale_fill_statgl)
+export(statgl_table)
 export(theme_statgl)
