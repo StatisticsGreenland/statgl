@@ -37,19 +37,8 @@ Add `+ theme_statgl()` to a ggplot object, to provide a custom theme:
 
 ``` r
 library(ggplot2)
-#> Warning: package 'ggplot2' was built under R version 3.6.2
 library(statgl)
-#> R Statistics Greenland (0.0.0.9000)
 library(dplyr)
-#> Warning: package 'dplyr' was built under R version 3.6.2
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 
 ex_plot <- 
   mpg %>% 
@@ -59,7 +48,7 @@ ex_plot <-
 ex_plot + theme_statgl()
 ```
 
-<img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
+<img src="man/figures/README-theme_example-1.png" width="100%" />
 
 Add `+ scale_color_statgl()` ot a ggplot object to provide custom color
 scale:
@@ -68,7 +57,7 @@ scale:
 ex_plot + theme_statgl() + scale_color_statgl()
 ```
 
-<img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
+<img src="man/figures/README-color_example-1.png" width="100%" />
 
 To provide a fill palette, use `+ scale_fill_statgl()` instead:
 
@@ -78,4 +67,4 @@ ex_plot <- mpg %>% ggplot(aes(x = class, fill = class)) + geom_bar()
 ex_plot + theme_statgl() + scale_fill_statgl()
 ```
 
-<img src="man/figures/README-unnamed-chunk-4-1.png" width="100%" />
+<img src="man/figures/README-fill_example-1.png" width="100%" />

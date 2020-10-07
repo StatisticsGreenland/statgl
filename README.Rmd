@@ -38,7 +38,7 @@ The color functions are made by following this great blog post by [Simon Jackson
 
 Add `+ theme_statgl()` to a ggplot object, to provide a custom theme:
 
-```{r}
+```{r theme_example, warning = FALSE, message = FALSE}
 library(ggplot2)
 library(statgl)
 library(dplyr)
@@ -53,13 +53,13 @@ ex_plot + theme_statgl()
 
 Add `+ scale_color_statgl()` ot a ggplot object to provide custom color scale:
 
-```{r}
+```{r color_example}
 ex_plot + theme_statgl() + scale_color_statgl()
 ```
 
 To provide a fill palette, use `+ scale_fill_statgl()` instead:
 
-```{r}
+```{r fill_example}
 ex_plot <- mpg %>% ggplot(aes(x = class, fill = class)) + geom_bar()
 
 ex_plot + theme_statgl() + scale_fill_statgl()
