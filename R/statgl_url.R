@@ -1,11 +1,11 @@
 #' Retrieve URL of px table
 #'
-#' Searches the statbank for a table of a given ID, and returns the URL if found.
-#' Only works on PX tables from Statistics Greenland
+#' Searches the statbank for a table of a given ID, and returns the URL if
+#' found. Only works on PX tables from Statistics Greenland.
 #'
 #' @param table_id ID of table
 #' @param lang API language of query. Defaults to \code{"en"}
-#' @param api_url URL of Statbank API. Default \code{glue::glue("https://bank.stat.gl:443/api/v1/{lang}/Greenland")}
+#' @param api_url URL of Statbank API. Defaults to Statistics Greenland API URL
 #'
 #' @return
 #' @export

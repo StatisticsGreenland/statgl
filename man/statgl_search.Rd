@@ -11,7 +11,8 @@ statgl_search(query, lang = "en", path = "",
 \arguments{
 \item{query}{Search query}
 
-\item{lang}{Language. Defaults to \code{"en"}, and must be one of \code{c("en", "kl", "da")} for Statistics Greenland PX API}
+\item{lang}{Language. Defaults to \code{"en"}, and must be one of
+\code{c("en", "kl", "da")} for Statistics Greenland PX API}
 
 \item{path}{Subfolder of API to search, e.g. \code{"BE"} for population}
 

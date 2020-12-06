@@ -13,11 +13,11 @@ statgl_url(table_id, lang = "en",
 
 \item{lang}{API language of query. Defaults to \code{"en"}}
 
-\item{api_url}{URL of Statbank API. Default \code{glue::glue("https://bank.stat.gl:443/api/v1/{lang}/Greenland")}}
+\item{api_url}{URL of Statbank API. Defaults to Statistics Greenland API URL}
 }
 \description{
-Searches the statbank for a table of a given ID, and returns the URL if found.
-Only works on PX tables from Statistics Greenland
+Searches the statbank for a table of a given ID, and returns the URL if
+found. Only works on PX tables from Statistics Greenland.
 }
 \examples{
 statgl_url("BEXST1")

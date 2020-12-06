@@ -4,7 +4,8 @@
 #' custom URL is provided in \code{api_url}
 #'
 #' @param query Search query
-#' @param lang Language. Defaults to \code{"en"}, and must be one of \code{c("en", "kl", "da")} for Statistics Greenland PX API
+#' @param lang Language. Defaults to \code{"en"}, and must be one of
+#' \code{c("en", "kl", "da")} for Statistics Greenland PX API
 #' @param path Subfolder of API to search, e.g. \code{"BE"} for population
 #' @param api_url Base API URL.
 #'
