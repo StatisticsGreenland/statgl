@@ -1,6 +1,6 @@
 Package: statgl
 Title: Statistics Greenland R package
-Version: 0.0.0.9001
+Version: 0.0.1
 Authors@R: 
     person(given = "Emil",
            family = "Malta",
@@ -15,4 +15,8 @@ RoxygenNote: 6.1.1
 Imports: 
     ggplot2,
     kableExtra,
-    dplyr
+    dplyr,
+    httr,
+    urltools,
+    jsonlite,
+    rjstat
