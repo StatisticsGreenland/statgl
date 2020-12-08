@@ -9,12 +9,21 @@
 #' @return
 #' @export
 #'
+#' @importFrom utils URLencode
+#'
 #' @examples
 #' statgl_fetch(statgl_url("BEXST1"))
 #' statgl_fetch(statgl_url("BEXST1"), gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch(statgl_url("BEXST1"), time = px_top(1), age = px_all("*0"))
 statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
                          .eliminate_rest = TRUE){
+
+  url < URLencode(url)
+
+  # Is this a saved query?
+  if(grepl("/sq/", url, fixed = TRUE)) {
+    warning("'/sq/' detected in URL. statgl_fetch should not be used with saved queries.")
+  }
 
   # Gather query list
   vls <- list(...)
@@ -43,7 +52,9 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   body <- build_query(vls)
 
   # Post to server
-  api_post <- httr::content(httr::POST(url, body = body), as = "text")
+  api_post <- suppressMessages(
+    httr::content(httr::POST(url, body = body), as = "text")
+  )
 
   # Get data
   text_df <- rjstat::fromJSONstat(api_post, naming = "label")[[1]]
