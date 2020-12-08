@@ -20,10 +20,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
 
   url < URLencode(url)
 
-  # Is this a saved query?
-  if(grepl("/sq/", url, fixed = TRUE)) {
-    warning("'/sq/' detected in URL. statgl_fetch should not be used with saved queries.")
-  }
+  recognize_px(url)
 
   # Gather query list
   vls <- list(...)
