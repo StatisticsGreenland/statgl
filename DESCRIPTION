@@ -17,6 +17,5 @@ Imports:
     kableExtra,
     dplyr,
     httr,
-    urltools,
     jsonlite,
     rjstat

@@ -12,6 +12,8 @@
 #' @return
 #' @export
 #'
+#' @importFrom utils URLencode
+#'
 #' @examples
 #' statgl_search("population")
 #' statgl_search("inuit", lang = "kl")
@@ -19,7 +21,7 @@ statgl_search <- function(
   query, lang = "en", path = "",
   api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path)
   ) {
-  query <- urltools::url_encode(query)
+  query <- URLencode(query)
   search_result <- httr::content(httr::GET(
     paste0(api_url, "?query=", query)
     ))
