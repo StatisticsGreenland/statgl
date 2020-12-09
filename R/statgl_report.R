@@ -15,6 +15,7 @@
 #' statgl_report()
 statgl_report <- function(output = "html", ...){
 
+  warning("This is a development version of statgl_report(), output is certain to change")
   if(output == "html"){
     stylesheet <- system.file("statgl.css", package = "statgl")
     rmarkdown::html_document(
@@ -23,6 +24,4 @@ statgl_report <- function(output = "html", ...){
       ...
     )
   }
-
-  warning("This is a development version of statgl_report(). Output is certain to change in later releases.")
 }
