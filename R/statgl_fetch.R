@@ -58,18 +58,35 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   code_df <- rjstat::fromJSONstat(api_post, naming = "id")[[1]]
 
   # Switch between code and text
-  rtn <- ifelse(.val_code, code_df, text_df)
-  if(.val_code) {
-    rtn <- code_df
-  } else {
+  if(is.logical(.val_code)) {
+    if(.val_code) {
+      rtn <- code_df
+    } else {
+      rtn <- text_df
+    }
+  } else if(is.character(.val_code)){
     rtn <- text_df
+    for(i in .val_code) {
+      idx <- which(names(code_df) == i)
+      rtn[,idx] <- code_df[,idx]
+    }
   }
 
-  if(.col_code) {
-    names(rtn) <- names(code_df)
-  } else {
-    names(rtn) <- names(text_df)
+  if(is.logical(.col_code)){
+    if(.col_code) {
+      names(rtn) <- names(code_df)
+    } else {
+      names(rtn) <- names(text_df)
+    }
+  } else if(is.character(.col_code)){
+    nms <- names(text_df)
+    for(i in .col_code) {
+      idx <- which(names(code_df) == i)
+      nms[idx] <- names(code_df)[idx]
+    }
+    names(rtn) <- nms
   }
+
 
   # Return
   rtn
