@@ -1,6 +1,6 @@
 Package: statgl
 Title: Statistics Greenland R package
-Version: 0.0.1
+Version: 0.0.1.9001
 Authors@R: 
     person(given = "Emil",
            family = "Malta",
