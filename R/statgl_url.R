@@ -18,8 +18,13 @@ statgl_url <-
     table_id, lang = "en",
     api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/")
   ) {
-    search_results <-
-      statgl_search(table_id, lang = lang, api_url = api_url)
+
+    if(!lang %in% c("en", "da", "kl")) {
+      stop("lang must be one of: 'en', 'da', 'kl'")
+    }
+
+    searchtable <- gsub("X", list(en = "E", da = "D", kl = "N")[lang], table_id)
+    search_results <- statgl_search(searchtable, lang = lang, api_url = api_url)
 
     for(i in search_results) {
       if(toupper(i[["id"]]) == toupper(paste0(table_id, ".PX"))) {
