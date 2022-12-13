@@ -23,7 +23,8 @@ statgl_url <-
       stop("lang must be one of: 'en', 'da', 'kl'")
     }
 
-    searchtable <- gsub("X", list(en = "E", da = "D", kl = "N")[lang], table_id)
+    searchtable <- table_id
+    substring(searchtable, 3, 3) <- list(en = "E", da = "D", kl = "N")[[lang]]
     search_results <- statgl_search(searchtable, lang = lang, api_url = api_url)
 
     for(i in search_results) {
