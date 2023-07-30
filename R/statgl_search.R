@@ -18,12 +18,13 @@
 #' statgl_search("population")
 #' statgl_search("inuit", lang = "kl")
 statgl_search <- function(
-  query, lang = "en", path = "",
+
+  query, topic = "", lang = "en", path = "",
   api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path)
   ) {
   query <- URLencode(query)
   search_result <- httr::content(httr::GET(
-    paste0(api_url, "?query=", query)
+    paste0(api_url, ifelse(topic == "", "/", ""), topic,  "?query=", query)
     ))
   structure(search_result, class = "px_search")
 }

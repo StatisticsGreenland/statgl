@@ -19,4 +19,5 @@ Imports:
     httr,
     jsonlite,
     rjstat,
-    rmarkdown
+    rmarkdown,
+    tibble
