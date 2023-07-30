@@ -20,7 +20,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
 
   url < URLencode(url)
 
-  recognize_px(url)
+  validate_px(url)
 
   # Gather query list
   vls <- list(...)

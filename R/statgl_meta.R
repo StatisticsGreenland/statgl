@@ -12,7 +12,7 @@
 statgl_meta <- function(url) {
   api_get <- httr::content(httr::GET(url))
 
-  recognize_px(url)
+  validate_px(url)
 
   structure(api_get, class = "statgl_meta")
 }
