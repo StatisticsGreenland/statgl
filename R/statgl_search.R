@@ -8,6 +8,9 @@
 #' \code{c("en", "kl", "da")} for Statistics Greenland PX API
 #' @param path Subfolder of API to search, e.g. \code{"BE"} for population
 #' @param api_url Base API URL.
+#' @param returnclass Return class from search query. Must be one of
+#' \code{"tibble"} or \code{"list"}. Defaults to tibble. Returns to default list
+#' from API when list.
 #'
 #' @return
 #' @export
@@ -18,21 +21,33 @@
 #' statgl_search("population")
 #' statgl_search("inuit", lang = "kl")
 statgl_search <- function(
-
-  query, topic = "", lang = "en", path = "",
-  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path)
-  ) {
+    query = "", lang = "en", path = "",
+    api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
+    returnclass = "tibble"
+) {
   query <- URLencode(query)
   search_result <- httr::content(httr::GET(
-    paste0(api_url, ifelse(topic == "", "/", ""), topic,  "?query=", query)
-    ))
-  structure(search_result, class = "px_search")
-}
+    paste0(api_url,  "?query=", query)
+  ))
 
-# Print function ---------------------------------------------------------------
+  if(tolower(returnclass) == "tibble") {
+    df_list <- lapply(search_result, as.data.frame)
+    df <- bind_rows(df_list)
 
-#' @export
-#' @importFrom utils str
-print.px_search <- function(x, ...) {
-  str(x)
+    if(query != "") {
+      df$path <- paste0(df$path, "/", df$id)
+      df$title <- trimws(gsub("<em>.*", "", df$title))
+    }
+    df$id <- sub("\\.(px|PX)$", "", df$id)
+
+    return(tibble::as_tibble(df))
+
+  }
+
+  if(tolower(returnclass) == "list") {
+    return(structure(search_result, class = "px_search"))
+  }
+
+  stop("returnclass must be one of: 'tibble', 'list'")
+
 }
