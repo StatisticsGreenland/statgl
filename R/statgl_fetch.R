@@ -19,8 +19,18 @@
 statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
                          .eliminate_rest = TRUE){
 
-  if(!is_valid_url(url)) {
-    url <- statgl_url(url)
+  get_language_code <- function(char) {
+    lang_mapping <- c("N" = "kl", "D" = "da")
+    return(lang_mapping[char])
+  }
+
+  if (!is_valid_url(url)) {
+    lang <- get_language_code(substr(url, 3, 3))
+    if (is.na(lang)) {
+      lang <- "en"
+    }
+    url <- paste0(substr(url, 1, 2), "X", substr(url, 4, nchar(url)))
+    url <- statgl_url(url, lang = lang)
   }
 
   url < URLencode(url)
@@ -94,49 +104,38 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
 
 
   # Return
-  rtn
+  tibble::as_tibble(rtn)
 }
 
 # Query builder ----------------------------------------------------------------
 
 build_query <- function(vls, .format = "json-stat") {
-
   nms <- names(vls)
   returner <- vector(mode = "list", length = length(vls))
 
-  if (length(vls) != 0){
-    for(i in seq_along(vls)) {
-
+  if (length(vls) != 0) {
+    for (i in seq_along(vls)) {
       attr_list <- names(attributes(vls[[i]]))
+      is_px_filter <- ifelse(is.null(attr_list), FALSE, attr_list == ".px_filter")
 
-      if(is.null(attr_list)) {
-        is_px_filter <- FALSE
-      } else if(attr_list == ".px_filter") {
-        is_px_filter <- TRUE
+      fff <- if (is_px_filter) {
+        attr(vls[[i]], ".px_filter")
       } else {
-        is_px_filter <- FALSE
-      }
-
-      if(is_px_filter) {
-        fff <- attr(vls[[i]], ".px_filter")
-      } else {
-        fff <- "item"
+        "item"
       }
 
       returner[[i]] <- list(
         code = jsonlite::unbox(nms[[i]]),
-        selection = list(filter = jsonlite::unbox(fff),
-                         values = as.character(vls[[i]])
+        selection = list(
+          filter = jsonlite::unbox(fff),
+          values = as.character(vls[[i]])
         )
       )
     }
   }
 
-  returner <-
-    list(query = returner, response = list(format = jsonlite::unbox(.format)))
-
+  returner <- list(query = returner, response = list(format = jsonlite::unbox(.format)))
   jsonlite::toJSON(returner)
-
 }
 
 # Fetch helpers ----------------------------------------------------------------
