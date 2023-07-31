@@ -12,11 +12,16 @@
 #' @importFrom utils URLencode
 #'
 #' @examples
-#' statgl_fetch(statgl_url("BEXST1"))
-#' statgl_fetch(statgl_url("BEXST1"), gender = c("M", "K"), time = 2010:2020)
-#' statgl_fetch(statgl_url("BEXST1"), time = px_top(1), age = px_all("*0"))
+#' statgl_fetch("BEXSTA")
+#' statgl_fetch(statgl_url("BEXSTA"))
+#' statgl_fetch(statgl_url("BEXSTA"), gender = c("M", "K"), time = 2010:2020)
+#' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
 statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
                          .eliminate_rest = TRUE){
+
+  if(!is_valid_url(url)) {
+    url <- statgl_url(url)
+  }
 
   url < URLencode(url)
 

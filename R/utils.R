@@ -4,3 +4,8 @@ validate_px <- function(url) {
     stop("URL not recognized as pxweb API")
   }
 }
+
+is_valid_url <- function(string) {
+  pattern <- "https?://[^ /$.?#].[^\\s]*"
+  grepl(pattern, string)
+}
