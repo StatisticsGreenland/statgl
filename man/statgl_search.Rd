@@ -4,9 +4,13 @@
 \alias{statgl_search}
 \title{Search Statistics Greenland API}
 \usage{
-statgl_search(query, lang = "en", path = "",
-  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang,
-  "/Greenland/", path))
+statgl_search(
+  query = "",
+  lang = "en",
+  path = "",
+  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
+  returnclass = "tibble"
+)
 }
 \arguments{
 \item{query}{Search query}
@@ -17,6 +21,10 @@ statgl_search(query, lang = "en", path = "",
 \item{path}{Subfolder of API to search, e.g. \code{"BE"} for population}
 
 \item{api_url}{Base API URL.}
+
+\item{returnclass}{Return class from search query. Must be one of
+\code{"tibble"} or \code{"list"}. Defaults to tibble. Returns to default list
+from API when list.}
 }
 \description{
 Do a search of Statistics Greenland API. Will work for other PXWEB APIs, when

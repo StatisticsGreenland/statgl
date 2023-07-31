@@ -4,8 +4,7 @@
 \alias{scale_color_statgl}
 \title{Statistics Greenland color scale}
 \usage{
-scale_color_statgl(palette = "main", discrete = TRUE,
-  reverse = FALSE, ...)
+scale_color_statgl(palette = "main", discrete = TRUE, reverse = FALSE, ...)
 }
 \arguments{
 \item{palette}{Character string with name of palette. Can be changed to \code{"dawn"}, etc. Defaults to \code{"main"}}

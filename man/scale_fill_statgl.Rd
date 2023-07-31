@@ -4,8 +4,7 @@
 \alias{scale_fill_statgl}
 \title{Statistics Greenland fill scale}
 \usage{
-scale_fill_statgl(palette = "main", discrete = TRUE, reverse = FALSE,
-  ...)
+scale_fill_statgl(palette = "main", discrete = TRUE, reverse = FALSE, ...)
 }
 \arguments{
 \item{palette}{Character string with name of palette. Can be changed to \code{"dawn"}, etc. Defaults to \code{"main"}}

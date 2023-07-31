@@ -28,7 +28,9 @@ values}
 Helper functions to make custom filters in pxweb API queries:
 }
 \details{
-* [px_top()]: API returns the the top n values provided
-* [px_all()]: API returns all values, matching a wildcard pattern
-* [px_agg()]; Instructs API to use aggregations, and which values to select.
+\itemize{
+\item \code{\link[=px_top]{px_top()}}: API returns the the top n values provided
+\item \code{\link[=px_all]{px_all()}}: API returns all values, matching a wildcard pattern
+\item \code{\link[=px_agg]{px_agg()}}; Instructs API to use aggregations, and which values to select.
+}
 }

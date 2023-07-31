@@ -4,9 +4,11 @@
 \alias{statgl_url}
 \title{Retrieve URL of px table}
 \usage{
-statgl_url(table_id, lang = "en",
-  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang,
-  "/Greenland/"))
+statgl_url(
+  table_id,
+  lang = "en",
+  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/")
+)
 }
 \arguments{
 \item{table_id}{ID of table}
