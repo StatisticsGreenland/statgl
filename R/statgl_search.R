@@ -32,7 +32,7 @@ statgl_search <- function(
 
   if(tolower(returnclass) == "tibble") {
     df_list <- lapply(search_result, as.data.frame)
-    df <- bind_rows(df_list)
+    df <- dplyr::bind_rows(df_list)
 
     if(query != "") {
       df$path <- paste0(df$path, "/", df$id)
