@@ -9,3 +9,8 @@ is_valid_url <- function(string) {
   pattern <- "https?://[^ /$.?#].[^\\s]*"
   grepl(pattern, string)
 }
+
+get_language_code <- function(char) {
+  lang_mapping <- c("N" = "kl", "D" = "da")
+  return(lang_mapping[char])
+}

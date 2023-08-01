@@ -19,11 +19,6 @@
 statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
                          .eliminate_rest = TRUE){
 
-  get_language_code <- function(char) {
-    lang_mapping <- c("N" = "kl", "D" = "da")
-    return(lang_mapping[char])
-  }
-
   if (!is_valid_url(url)) {
     url <- toupper(url)
     lang <- get_language_code(substr(url, 3, 3))
