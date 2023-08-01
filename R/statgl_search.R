@@ -30,6 +30,10 @@ statgl_search <- function(
     paste0(api_url,  "?query=", query)
   ))
 
+  if(length(search_result) == 0) {
+    stop("0 hits")
+  }
+
   if(tolower(returnclass) == "tibble") {
     df_list <- lapply(search_result, as.data.frame)
     df <- dplyr::bind_rows(df_list)
