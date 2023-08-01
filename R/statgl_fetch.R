@@ -65,13 +65,19 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   body <- build_query(vls)
 
   # Post to server
-  api_post <- suppressMessages(
-    httr::content(httr::POST(url, body = body), as = "text")
+  api_response <- httr::POST(url, body = body)
+
+  # Validate return status
+  httr::stop_for_status(api_response)
+
+  # Get content
+  api_content <- suppressMessages(
+    httr::content(api_response, as = "text")
   )
 
   # Get data
-  text_df <- rjstat::fromJSONstat(api_post, naming = "label")[[1]]
-  code_df <- rjstat::fromJSONstat(api_post, naming = "id")[[1]]
+  text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+  code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
 
   # Switch between code and text
   if(is.logical(.val_code)) {
