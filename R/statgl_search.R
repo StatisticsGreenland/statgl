@@ -21,14 +21,15 @@
 #' statgl_search("population")
 #' statgl_search("inuit", lang = "kl")
 statgl_search <- function(
-    query = "", lang = "en", path = "",
+    query = "", path = "", lang = "en",
     api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
     returnclass = "tibble"
 ) {
 
   query <- URLencode(query)
 
-    if(nchar(path) != 2 & ! grepl("/", path)) {
+  path <- toupper(path)
+  if(nchar(path) > 2 & !grepl("/", path)) {
     path <- generate_subfolders(path)
     message(paste0("Trying path: ", path))
   }
@@ -42,21 +43,29 @@ statgl_search <- function(
   }
 
   if(tolower(returnclass) == "tibble") {
-    df_list <- lapply(search_result, as.data.frame)
+    df_list <- lapply(search_result, tibble::as_tibble)
     df <- dplyr::bind_rows(df_list)
 
-    if(query != "") {
-      df$path <- paste0(df$path, "/", df$id)
+    if(query == "") {
+      df$text <- trimws(gsub("<em>.*", "", df$text))
+    } else {
       df$title <- trimws(gsub("<em>.*", "", df$title))
+      df$type <- "t"
     }
+
+    df$path <- gsub("/+", "/", paste0("/", toupper(path), "/", df$id))
     df$id <- sub("\\.(px|PX)$", "", df$id)
 
-    return(tibble::as_tibble(df))
+    df <- dplyr::select(
+      df, "id", dplyr::any_of(c("text", "title")), "type", "path",
+      dplyr::everything()
+    )
 
+    return(df)
   }
 
-  if(tolower(returnclass) == "list") {
-    return(structure(search_result, class = "px_search"))
+  else if(tolower(returnclass) == "list") {
+    return(search_result)
   }
 
   stop("returnclass must be one of: 'tibble', 'list'")
