@@ -14,3 +14,14 @@ get_language_code <- function(char) {
   lang_mapping <- c("N" = "kl", "D" = "da")
   return(lang_mapping[char])
 }
+
+generate_subfolders <- function(pattern) {
+  num_levels <- nchar(pattern) %/% 2
+  returner <- character(num_levels)
+
+  for (i in seq_len(num_levels)) {
+    returner[i] <- substr(pattern, 1, i * 2)
+  }
+
+  return(paste(returner, collapse = "/"))
+}

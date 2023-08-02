@@ -25,7 +25,14 @@ statgl_search <- function(
     api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
     returnclass = "tibble"
 ) {
+
   query <- URLencode(query)
+
+    if(nchar(path) != 2 & ! grepl("/", path)) {
+    path <- generate_subfolders(path)
+    message(paste0("Trying path: ", path))
+  }
+
   search_result <- httr::content(httr::GET(
     paste0(api_url,  "?query=", query)
   ))
