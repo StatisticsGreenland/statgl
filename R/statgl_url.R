@@ -15,22 +15,33 @@
 #' statgl_url("BEXST1", lang = "kl")
 statgl_url <-
   function(
-    table_id, lang = "en",
+    table_id, lang = get_language(substr(table_id, 3, 3)),
     api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/")
   ) {
 
-    if(!lang %in% c("en", "da", "kl")) {
+    if(!unique(lang) %in% c("en", "da", "kl")) {
       stop("lang must be one of: 'en', 'da', 'kl'")
     }
 
-    searchtable <- table_id
-    substring(searchtable, 3, 3) <- list(en = "E", da = "D", kl = "N")[[lang]]
+    searchtable <- paste0(table_id, ".px")
+
+    searchtable <- paste0(
+      substr(searchtable, 1, 2),
+      "X",
+      substr(searchtable, 4, nchar(searchtable))
+    )
+
+    sapply(searchtable, statgl_search, lang = lang, api_url = api_url,
+           returnclass = "list")
+
     search_results <- statgl_search(searchtable, lang = lang, api_url = api_url,
                                     returnclass = "list")
 
     for(i in search_results) {
-      if(toupper(i[["id"]]) == toupper(paste0(table_id, ".PX"))) {
-        return(paste0(api_url, i[["path"]], "/", i[["id"]]))
+      if(toupper(i[["id"]]) == toupper(searchtable)) {
+        return(
+          paste0(gsub("/$", "", api_url), i[["path"]], "/", i[["id"]])
+        )
       }
     }
 
