@@ -21,7 +21,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
 
   if (!is_valid_url(url)) {
     url <- toupper(url)
-    lang <- get_language_code(substr(url, 3, 3))
+    lang <- get_language(substr(url, 3, 3))
     if (is.na(lang)) {
       lang <- "en"
     }

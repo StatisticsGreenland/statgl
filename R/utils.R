@@ -10,8 +10,15 @@ is_valid_url <- function(string) {
   grepl(pattern, string)
 }
 
+get_language <- function(char) {
+  char <- toupper(char)
+  lang_mapping <- c("N" = "kl", "D" = "da", "E" = "en", "X" = "en")
+  return(lang_mapping[char])
+}
+
 get_language_code <- function(char) {
-  lang_mapping <- c("N" = "kl", "D" = "da")
+  char <- tolower(char)
+  lang_mapping <- c("kl" = "N", "da" = "D", "en" = "E")
   return(lang_mapping[char])
 }
 
