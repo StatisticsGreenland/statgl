@@ -13,5 +13,5 @@ statgl_meta(url)
 Retrieves metadata from pxweb API url.
 }
 \examples{
-statgl_meta(statgl_url("BEXST1"))
+statgl_meta(statgl_url("BEXSTA"))
 }

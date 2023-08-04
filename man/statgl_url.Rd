@@ -6,7 +6,7 @@
 \usage{
 statgl_url(
   table_id,
-  lang = "en",
+  lang = get_language(substr(table_id, 3, 3)),
   api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/")
 )
 }
