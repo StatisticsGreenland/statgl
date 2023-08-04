@@ -4,9 +4,9 @@
 #' custom URL is provided in \code{api_url}
 #'
 #' @param query Search query
+#' @param path Subfolder of API to search, e.g. \code{"BE"} for population
 #' @param lang Language. Defaults to \code{"en"}, and must be one of
 #' \code{c("en", "kl", "da")} for Statistics Greenland PX API
-#' @param path Subfolder of API to search, e.g. \code{"BE"} for population
 #' @param api_url Base API URL.
 #' @param returnclass Return class from search query. Must be one of
 #' \code{"tibble"} or \code{"list"}. Defaults to tibble. Returns to default list
@@ -48,13 +48,25 @@ statgl_search <- function(
 
     if(query == "") {
       df$text <- trimws(gsub("<em>.*", "", df$text))
+      df$path <- gsub("/+", "/", paste0(
+        "/", toupper(path), "/",
+        ifelse(df$type == "t", df$id, "")
+      )
+      )
     } else {
       df$title <- trimws(gsub("<em>.*", "", df$title))
       df$type <- "t"
+      df$id <- paste0(
+        substr(df$id, 1, 2),
+        get_language_code(lang),
+        substr(df$id, 4, nchar(df$id))
+      )
+      df$path <- gsub("/+", "/", paste0("/", toupper(df$path), "/", df$id))
     }
 
-    df$path <- gsub("/+", "/", paste0("/", toupper(path), "/", df$id))
+    df$path <- gsub("/+", "/", paste0("/", toupper(df$path), "/", df$id))
     df$id <- sub("\\.(px|PX)$", "", df$id)
+
 
     df <- dplyr::select(
       df, "id", dplyr::any_of(c("text", "title")), "type", "path",
