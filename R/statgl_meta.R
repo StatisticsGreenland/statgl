@@ -18,5 +18,5 @@ statgl_meta <- function(url) {
 
   cat(paste0(unique(api_get$title), "\n\n"))
   meta_list <- lapply(api_get$variables, tibble::as_tibble)
-  lapply(meta_list, dplyr::mutate, values = unlist("values"), valueTexts = unlist("valueTexts"))
+  lapply(meta_list, dplyr::mutate, values = unlist(values), valueTexts = unlist(valueTexts))
 }
