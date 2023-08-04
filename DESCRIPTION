@@ -1,6 +1,6 @@
 Package: statgl
 Title: Statistics Greenland R package
-Version: 0.2.2.9001
+Version: 0.2.2.9002
 Authors@R: 
     person("Emil", "Malta", role = c("aut", "cre"),  email = "emim@stat.gl")
 Description: Query and visualise data published by Statistics Greenland.
