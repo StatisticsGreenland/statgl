@@ -39,7 +39,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   # Check if other variables should be eliminated
   if(!.eliminate_rest) {
 
-    sgl_meta <- statgl_meta(url)[["variables"]]
+    sgl_meta <- statgl_meta(url, "list")[["variables"]]
     el_list <- vector("list", length = length(sgl_meta))
 
     for(i in seq_along(sgl_meta)) {
