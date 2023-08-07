@@ -29,6 +29,7 @@ statgl_search <- function(
   query <- URLencode(query)
 
   path <- toupper(path)
+
   if(nchar(path) > 2 & !grepl("/", path)) {
     path <- generate_subfolders(path)
     message(paste0("Trying path: ", path))
@@ -48,25 +49,23 @@ statgl_search <- function(
 
     if(query == "") {
       df$text <- trimws(gsub("<em>.*", "", df$text))
-      df$path <- gsub("/+", "/", paste0(
-        "/", toupper(path), "/",
-        ifelse(df$type == "t", df$id, "")
-      )
-      )
+      df$path = paste0("/", path)
     } else {
       df$title <- trimws(gsub("<em>.*", "", df$title))
       df$type <- "t"
-      df$id <- paste0(
-        substr(df$id, 1, 2),
-        get_language_code(lang),
-        substr(df$id, 4, nchar(df$id))
-      )
-      df$path <- gsub("/+", "/", paste0("/", toupper(df$path), "/", df$id))
     }
 
-    df$path <- gsub("/+", "/", paste0("/", toupper(df$path), "/", df$id))
-    df$id <- sub("\\.(px|PX)$", "", df$id)
+    df$path <- gsub("/+", "/",  paste0(df$path, "/", df$id))
 
+    df$id <- ifelse(
+      df$type == "t",
+      paste0(substr(df$id, 1, 2),
+             get_language_code(lang),
+             paste0(substr(df$id, 4, nchar(df$id)))),
+      df$id
+    )
+
+    df$id <- sub("\\.(px|PX)$", "", df$id)
 
     df <- dplyr::select(
       df, "id", dplyr::any_of(c("text", "title")), "type", "path",
