@@ -32,3 +32,5 @@ generate_subfolders <- function(pattern) {
 
   return(paste(returner, collapse = "/"))
 }
+
+utils::globalVariables(c("values", "valueTexts"))

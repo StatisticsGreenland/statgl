@@ -3,6 +3,7 @@
 #' Retrieves metadata from pxweb API url.
 #'
 #' @param url API url of Statbank table
+#' @param returnclass Returns list of tibbles if \code{"tibbles"} (default).
 #'
 #' @return
 #' @export
@@ -19,10 +20,14 @@ statgl_meta <- function(url, returnclass = "tibbles") {
 
   cat(paste0(unique(api_get$title), "\n\n"))
   meta_list <- lapply(api_get$variables, tibble::as_tibble)
+
   tbl_list <- lapply(
     meta_list, dplyr::mutate, values = unlist(values),
     valueTexts = unlist(valueTexts)
   )
+
+  return(tbl_list)
+
   } else {
 
     if (!is_valid_url(url)) {
@@ -38,7 +43,7 @@ statgl_meta <- function(url, returnclass = "tibbles") {
 
     validate_px(url)
 
-    api_get
+    return(api_get)
   }
 
 }
