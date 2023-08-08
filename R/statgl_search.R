@@ -28,7 +28,7 @@ statgl_search <- function(
 
   query <- URLencode(query)
 
-  path <- toupper(path)
+  path <- gsub("^/", "", toupper(path))
 
   if(nchar(path) > 2 & !grepl("/", path)) {
     path <- generate_subfolders(path)
