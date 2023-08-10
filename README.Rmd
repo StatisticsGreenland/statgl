@@ -1,0 +1,81 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# statgl
+
+Query and visualize data published by Statistics Greenland.
+
+## Installation
+
+You can install the development version of statgl from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("StatisticsGreenland/statgl")
+```
+
+To load the package contents to the R environment, run:
+
+```{r}
+library(statgl)
+```
+
+## Search
+
+Use `statgl_search` to do a freetext search of the Greenland Statbank:
+
+```{r}
+statgl_search("population jan* 1st")
+```
+
+## Fetch
+
+The ID's found in search results are unique table ID's, that can be collected by `statgl_fetch`:
+
+```{r}
+statgl_fetch("BEESTA")
+```
+
+Eliminable variables are removed by default. To see which variables can be queried, use `statgl_meta`:
+
+```{r}
+statgl_meta("BEESTA")
+```
+
+Codes from `values` columns can be used to query:
+
+```{r}
+statgl_fetch("BEESTA", gender = c("M", "K"), age = 0:99)
+```
+
+Use `.eliminate_rest = FALSE` to show all values of remaining eliminables:
+
+```{r}
+statgl_fetch("BEXSTA", .eliminate_rest = FALSE)
+```
+
+## ggplot
+
+The package comes with extensions for ggplot2, to create data visualizations following the Statistics Greenland design manual:
+
+```{r}
+library(ggplot2)
+
+ggplot(statgl_fetch("BEESTA", gender = c("M", "K"))) +
+  geom_line(aes(as.numeric(time), value, color = gender)) +
+  scale_color_statgl() +
+  theme_statgl()
+```
+
