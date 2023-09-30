@@ -33,4 +33,24 @@ generate_subfolders <- function(pattern) {
   return(paste(returner, collapse = "/"))
 }
 
+extract_substring <- function(input_string, pattern) {
+
+  # Use regexec to find the position of the first match
+  match_result <- regexec(pattern, input_string)
+
+  # Check if a match was found
+  if (length(match_result[[1]]) >= 0) {
+    # Extract the captured substring
+    captured_text <- regmatches(input_string, match_result)[[1]][2]
+    return(captured_text)
+  } else {
+    return(NULL)
+  }
+}
+
+
 utils::globalVariables(c("values", "valueTexts"))
+
+
+
+

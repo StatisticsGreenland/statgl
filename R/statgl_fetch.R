@@ -1,6 +1,6 @@
 #' Retrieve statbank data via URL
 #'
-#' @param url API url of statbank matrix
+#' @param x API url of statbank matrix
 #' @param ... Selection queries for variables
 #' @param .col_code \code{TRUE}/\code{FALSE}. Display column names as code.
 #' @param .val_code \code{TRUE}/\code{FALSE}. Display cell values as code.
@@ -13,25 +13,29 @@
 #'
 #' @examples
 #' statgl_fetch("BEXSTA")
-#' statgl_fetch(statgl_url("BEXSTA"))
-#' statgl_fetch(statgl_url("BEXSTA"), gender = c("M", "K"), time = 2010:2020)
+#' statgl_fetch("BEXSTA")
+#' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
-statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
-                         .eliminate_rest = TRUE){
+statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
+                         .val_code = FALSE, .eliminate_rest = TRUE){
 
-  if (!is_valid_url(url)) {
-    url <- toupper(url)
-    lang <- get_language(substr(url, 3, 3))
+  if (!missing(url)) {
+    message("`url` as parameter is deprecated. Please use `x`.\n")
+  }
+
+  if (!is_valid_url(x)) {
+    x <- toupper(x)
+    lang <- get_language(substr(x, 3, 3))
     if (is.na(lang)) {
       lang <- "en"
     }
-    url <- paste0(substr(url, 1, 2), "X", substr(url, 4, nchar(url)))
-    url <- statgl_url(url, lang = lang)
+    x <- paste0(substr(x, 1, 2), "X", substr(x, 4, nchar(x)))
+    x <- statgl_url(x, lang = lang)
   }
 
-  url < URLencode(url)
+  x <- URLencode(x)
 
-  validate_px(url)
+  validate_px(x)
 
   # Gather query list
   vls <- list(...)
@@ -39,7 +43,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   # Check if other variables should be eliminated
   if(!.eliminate_rest) {
 
-    sgl_meta <- statgl_meta(url, "list")[["variables"]]
+    sgl_meta <- statgl_meta(x, "list")[["variables"]]
     el_list <- vector("list", length = length(sgl_meta))
 
     for(i in seq_along(sgl_meta)) {
@@ -60,7 +64,7 @@ statgl_fetch <- function(url, ..., .col_code = FALSE, .val_code = FALSE,
   body <- build_query(vls)
 
   # Post to server
-  api_response <- httr::POST(url, body = body)
+  api_response <- httr::POST(x, body = body)
 
   # Validate return status
   httr::stop_for_status(api_response)

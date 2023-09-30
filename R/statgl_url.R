@@ -15,27 +15,44 @@
 #' statgl_url("BEXST1", lang = "kl")
 statgl_url <-
   function(
-    table_id, lang = get_language(substr(table_id, 3, 3)),
-    api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/")
+    table_id, lang,
+    api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/"
   ) {
 
-    if(!unique(lang) %in% c("en", "da", "kl")) {
-      stop("lang must be one of: 'en', 'da', 'kl'")
+    # Should extend the search with .px
+    if(!base::endsWith(table_id, ".px")) {
+      searchtable <- paste0(table_id, ".px")
+    } else {
+      searchtable <- table_id
     }
 
-    searchtable <- paste0(table_id, ".px")
+    # There is a language trick in the Greenlandic (and only Greenlandic) API
+    if(grepl("^https?://bank\\.stat\\.gl.*?/api/v", api_url)) {
 
-    searchtable <- paste0(
-      substr(searchtable, 1, 2),
-      "X",
-      substr(searchtable, 4, nchar(searchtable))
+      searchtable <- paste0(
+        substr(searchtable, 1, 2), "X",
+        substr(searchtable, 4, nchar(searchtable))
+      )
+
+      if(missing(lang) & toupper(substr(table_id, 3, 3)) != "X") {
+        lang <- get_language(substr(table_id, 3, 3))
+      } else {
+        lang <- extract_substring(api_url, pattern = "/v\\d+/(.*?)/")
+      }
+    }
+
+    # Else if lang is not provided, it should guess from the API link
+    else if(missing(lang)) {
+      lang <- extract_substring(api_url, pattern = "/v\\d+/(.*?)/")
+    }
+
+    api_url <-
+      gsub("(?<=/v\\d/)[^/]+", lang, api_url, perl = TRUE)
+
+
+    search_results <- statgl_search(
+      searchtable, lang = lang, api_url = api_url, returnclass = "list"
     )
-
-    sapply(searchtable, statgl_search, lang = lang, api_url = api_url,
-           returnclass = "list")
-
-    search_results <- statgl_search(searchtable, lang = lang, api_url = api_url,
-                                    returnclass = "list")
 
     for(i in search_results) {
       if(toupper(i[["id"]]) == toupper(searchtable)) {

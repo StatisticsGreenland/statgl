@@ -22,12 +22,13 @@
 #' statgl_search("inuit", lang = "kl")
 statgl_search <- function(
     query = "", path = "", lang = "en",
-    api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
+    api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/",
     returnclass = "tibble"
 ) {
 
-  query <- URLencode(query)
+  # browser()
 
+  query <- URLencode(query)
   path <- gsub("^/", "", toupper(path))
 
   if(nchar(path) > 2 & !grepl("/", path)) {
@@ -35,11 +36,14 @@ statgl_search <- function(
     message(paste0("Trying path: ", path))
   }
 
+  api_url <- gsub("(?<=v1/)[^/]+", lang, api_url, perl = TRUE)
+  api_url <- paste(api_url, path, sep = "/")
+
   search_result <- httr::content(httr::GET(
     paste0(api_url,  "?query=", query)
   ))
 
-  if(length(search_result) == 0) {
+  if(length(search_result) == 0L) {
     stop("0 hits")
   }
 
@@ -55,20 +59,12 @@ statgl_search <- function(
       df$type <- "t"
     }
 
-    df$path <- gsub("/+", "/",  paste0(df$path, "/", df$id))
+    df$path <- gsub("/+", "/",  paste0(df$path, "/", df[[1]]))
 
-    df$id <- ifelse(
-      df$type == "t",
-      paste0(substr(df$id, 1, 2),
-             get_language_code(lang),
-             paste0(substr(df$id, 4, nchar(df$id)))),
-      df$id
-    )
-
-    df$id <- sub("\\.(px|PX)$", "", df$id)
+    df[[1]] <- sub("\\.(px|PX)$", "", df[[1]])
 
     df <- dplyr::select(
-      df, "id", dplyr::any_of(c("text", "title")), "type", "path",
+      df, 1, dplyr::any_of(c("text", "title", "type")), "path",
       dplyr::everything()
     )
 
