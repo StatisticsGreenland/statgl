@@ -26,8 +26,6 @@ statgl_search <- function(
     returnclass = "tibble"
 ) {
 
-  # browser()
-
   query <- URLencode(query)
   path <- gsub("^/", "", toupper(path))
 

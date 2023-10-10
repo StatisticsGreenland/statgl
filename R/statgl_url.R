@@ -29,16 +29,17 @@ statgl_url <-
     # There is a language trick in the Greenlandic (and only Greenlandic) API
     if(grepl("^https?://bank\\.stat\\.gl.*?/api/v", api_url)) {
 
+      if(missing(lang) & toupper(substr(table_id, 3, 3)) %in% c("D", "E", "N")) {
+        lang <- get_language(substr(table_id, 3, 3))
+      } else if(missing(lang)) {
+        lang <- extract_substring(api_url, pattern = "/v\\d+/(.*?)/")
+      }
+
       searchtable <- paste0(
         substr(searchtable, 1, 2), "X",
         substr(searchtable, 4, nchar(searchtable))
       )
 
-      if(missing(lang) & toupper(substr(table_id, 3, 3)) != "X") {
-        lang <- get_language(substr(table_id, 3, 3))
-      } else {
-        lang <- extract_substring(api_url, pattern = "/v\\d+/(.*?)/")
-      }
     }
 
     # Else if lang is not provided, it should guess from the API link

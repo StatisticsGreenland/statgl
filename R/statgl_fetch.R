@@ -23,6 +23,7 @@ statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
     message("`url` as parameter is deprecated. Please use `x`.\n")
   }
 
+  # Looks up Greenland API tables if not URL
   if (!is_valid_url(x)) {
     x <- toupper(x)
     lang <- get_language(substr(x, 3, 3))
