@@ -4,12 +4,12 @@
 \alias{statgl_meta}
 \title{Retrieve metadata from Statbank}
 \usage{
-statgl_meta(url, returnclass = "tibbles")
+statgl_meta(url, returnclass = "tibble")
 }
 \arguments{
 \item{url}{API url of Statbank table}
 
-\item{returnclass}{Returns list of tibbles if \code{"tibbles"} (default).}
+\item{returnclass}{Returns list with tibble if \code{"tibble"} (default).}
 }
 \description{
 Retrieves metadata from pxweb API url.

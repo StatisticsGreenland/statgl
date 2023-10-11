@@ -8,7 +8,7 @@ statgl_search(
   query = "",
   path = "",
   lang = "en",
-  api_url = paste0("https://bank.stat.gl:443/api/v1/", lang, "/Greenland/", path),
+  api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/",
   returnclass = "tibble"
 )
 }

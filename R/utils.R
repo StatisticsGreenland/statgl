@@ -49,7 +49,7 @@ extract_substring <- function(input_string, pattern) {
 }
 
 
-utils::globalVariables(c("values", "valueTexts"))
+utils::globalVariables(c("values", "valueTexts", "code", "text", "elimination", "time"))
 
 
 

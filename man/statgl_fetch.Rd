@@ -5,17 +5,20 @@
 \title{Retrieve statbank data via URL}
 \usage{
 statgl_fetch(
-  url,
+  x,
   ...,
+  url = NULL,
   .col_code = FALSE,
   .val_code = FALSE,
   .eliminate_rest = TRUE
 )
 }
 \arguments{
-\item{url}{API url of statbank matrix}
+\item{x}{API url of statbank matrix}
 
 \item{...}{Selection queries for variables}
+
+\item{url}{deprecated}
 
 \item{.col_code}{\code{TRUE}/\code{FALSE}. Display column names as code.}
 
@@ -28,7 +31,7 @@ Retrieve statbank data via URL
 }
 \examples{
 statgl_fetch("BEXSTA")
-statgl_fetch(statgl_url("BEXSTA"))
-statgl_fetch(statgl_url("BEXSTA"), gender = c("M", "K"), time = 2010:2020)
+statgl_fetch("BEXSTA")
+statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
 }
