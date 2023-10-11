@@ -5,6 +5,7 @@
 #' @param .col_code \code{TRUE}/\code{FALSE}. Display column names as code.
 #' @param .val_code \code{TRUE}/\code{FALSE}. Display cell values as code.
 #' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).
+#' @param url deprecated
 #'
 #' @return
 #' @export
@@ -39,7 +40,7 @@ statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
   validate_px(x)
 
   # Gather query list
-  vls <- list(...)
+  vls <- rlang::dots_list(...)
 
   # Check if other variables should be eliminated
   if(!.eliminate_rest) {
