@@ -3,22 +3,21 @@
 #' Retrieves metadata from pxweb API url.
 #'
 #' @param url API url of Statbank table
-#' @param returnclass Returns list of tibbles if \code{"tibbles"} (default).
+#' @param returnclass Returns list with tibble if \code{"tibble"} (default).
 #'
 #' @return
 #' @export
 #'
 #' @examples
 #' statgl_meta(statgl_url("BEXSTA"))
-statgl_meta <- function(url, returnclass = "tibbles") {
+statgl_meta <- function(url, returnclass = "tibble") {
 
-  if(returnclass == "tibbles") {
+  if(returnclass == "tibble") {
   if (!is_valid_url(url)) {
     url <- statgl_url(url)
   }
   api_get <- httr::content(httr::GET(url))
 
-  cat(paste0(unique(api_get$title), "\n\n"))
   meta_list <- lapply(api_get$variables, tibble::as_tibble)
 
   tbl_list <- lapply(
@@ -26,7 +25,14 @@ statgl_meta <- function(url, returnclass = "tibbles") {
     valueTexts = unlist(valueTexts)
   )
 
-  return(tbl_list)
+  tbl <- dplyr::summarise(
+    dplyr::group_by(
+      dplyr::bind_rows(tbl_list),
+      code, text, elimination, time),
+    values = list(values), valueTexts = list(valueTexts),
+    .groups = "drop")
+
+  return(list(title = api_get$title, url = url, variables = tbl))
 
   } else {
 
