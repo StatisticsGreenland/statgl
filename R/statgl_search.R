@@ -29,7 +29,7 @@ statgl_search <- function(
   query <- URLencode(query)
   path <- gsub("^/", "", toupper(path))
 
-  if(nchar(path) > 2 & !grepl("/", path)) {
+  if(grepl("^https?://bank\\.stat\\.gl.*?/api/v", api_url) & nchar(path) > 2 & !grepl("/", path)) {
     path <- generate_subfolders(path)
     message(paste0("Trying path: ", path))
   }
