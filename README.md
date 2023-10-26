@@ -19,7 +19,7 @@ To load the package contents to the R environment, run:
 
 ``` r
 library(statgl)
-#> R Statistics Greenland (0.2.2.9004)
+#> R Statistics Greenland (0.2.2.9009)
 ```
 
 ## Search
@@ -31,22 +31,22 @@ statgl_search("population jan* 1st")
 #> # A tibble: 137 × 6
 #>    id       title                                    type  path  score published
 #>    <chr>    <chr>                                    <chr> <chr> <dbl> <chr>    
-#>  1 BEESTA   Population January 1st 1977-2023         t     /BE/… 0.342 2023-02-…
-#>  2 BEEST1   Population January 1st 1977-2020         t     /BE/… 0.342 2020-02-…
-#>  3 BEESTAYY Population January 1st, fixed residence… t     /BE/… 0.290 2023-02-…
-#>  4 BEESTB   Population in Municipalities January 1s… t     /BE/… 0.290 2023-02-…
-#>  5 BEESTC   Population in Districts and Municipalit… t     /BE/… 0.290 2023-02-…
-#>  6 BEESTD   Population in Localities January 1st 19… t     /BE/… 0.290 2023-02-…
-#>  7 BEESTDt  Population seniority in Localities Janu… t     /BE/… 0.290 2023-02-…
-#>  8 BEESTNUK Population In Nuuk January 1st by cityd… t     /BE/… 0.290 2023-02-…
-#>  9 BEEST2A  Population in  municipalities(2018) Jan… t     /BE/… 0.290 2017-10-…
-#> 10 BEEST2   Population in Municipalities January 1s… t     /BE/… 0.290 2020-02-…
+#>  1 BEXSTA   Population January 1st 1977-2023         t     /BE/… 0.342 2023-02-…
+#>  2 BEXST1   Population January 1st 1977-2020         t     /BE/… 0.342 2020-02-…
+#>  3 BEXSTAYY Population January 1st, fixed residence… t     /BE/… 0.290 2023-02-…
+#>  4 BEXSTB   Population in Municipalities January 1s… t     /BE/… 0.290 2023-02-…
+#>  5 BEXSTC   Population in Districts and Municipalit… t     /BE/… 0.290 2023-02-…
+#>  6 BEXSTD   Population in Localities January 1st 19… t     /BE/… 0.290 2023-02-…
+#>  7 BEXSTDt  Population seniority in Localities Janu… t     /BE/… 0.290 2023-02-…
+#>  8 BEXSTNUK Population In Nuuk January 1st by cityd… t     /BE/… 0.290 2023-02-…
+#>  9 BEXST2A  Population in  municipalities(2018) Jan… t     /BE/… 0.290 2017-10-…
+#> 10 BEXST2   Population in Municipalities January 1s… t     /BE/… 0.290 2020-02-…
 #> # ℹ 127 more rows
 ```
 
 ## Fetch
 
-The ID’s found in search results are unique table ID’s, that can be
+The ID’s found in search results are unique table ID’s, which can be
 collected by `statgl_fetch`:
 
 ``` r
@@ -72,67 +72,21 @@ be queried, use `statgl_meta`:
 
 ``` r
 statgl_meta("BEESTA")
-#> Population January 1st by place of birth, gender, age, residence type and time
-#> [[1]]
-#> # A tibble: 3 × 5
-#>   code           text           values valueTexts             elimination
-#>   <chr>          <chr>          <chr>  <chr>                  <lgl>      
-#> 1 place of birth place of birth T      Total                  TRUE       
-#> 2 place of birth place of birth N      Greenland              TRUE       
-#> 3 place of birth place of birth S      Born outside Greenland TRUE       
+#> $title
+#> [1] "Population January 1st by place of birth, gender, age, residence type and time"
 #> 
-#> [[2]]
-#> # A tibble: 3 × 5
-#>   code   text   values valueTexts elimination
-#>   <chr>  <chr>  <chr>  <chr>      <lgl>      
-#> 1 gender gender T      Total      TRUE       
-#> 2 gender gender M      Men        TRUE       
-#> 3 gender gender K      Women      TRUE       
+#> $url
+#> [1] "https://bank.stat.gl:443/api/v1/en/Greenland/BE/BE01/BE0120/BEXSTA.px"
 #> 
-#> [[3]]
-#> # A tibble: 100 × 5
-#>    code  text  values valueTexts elimination
-#>    <chr> <chr> <chr>  <chr>      <lgl>      
-#>  1 age   age   0      0          TRUE       
-#>  2 age   age   1      1          TRUE       
-#>  3 age   age   2      2          TRUE       
-#>  4 age   age   3      3          TRUE       
-#>  5 age   age   4      4          TRUE       
-#>  6 age   age   5      5          TRUE       
-#>  7 age   age   6      6          TRUE       
-#>  8 age   age   7      7          TRUE       
-#>  9 age   age   8      8          TRUE       
-#> 10 age   age   9      9          TRUE       
-#> # ℹ 90 more rows
-#> 
-#> [[4]]
-#> # A tibble: 8 × 5
-#>   code           text           values valueTexts           elimination
-#>   <chr>          <chr>          <chr>  <chr>                <lgl>      
-#> 1 residence type residence type T      Total                TRUE       
-#> 2 residence type residence type A      Capital city         TRUE       
-#> 3 residence type residence type B      Main settlements     TRUE       
-#> 4 residence type residence type C      Larger settlements   TRUE       
-#> 5 residence type residence type D      Settlements          TRUE       
-#> 6 residence type residence type E      Smaller settlements  TRUE       
-#> 7 residence type residence type F      Smallest settlements TRUE       
-#> 8 residence type residence type G      Other localities     TRUE       
-#> 
-#> [[5]]
-#> # A tibble: 47 × 5
-#>    code  text  values valueTexts time 
-#>    <chr> <chr> <chr>  <chr>      <lgl>
-#>  1 time  time  1977   1977       TRUE 
-#>  2 time  time  1978   1978       TRUE 
-#>  3 time  time  1979   1979       TRUE 
-#>  4 time  time  1980   1980       TRUE 
-#>  5 time  time  1981   1981       TRUE 
-#>  6 time  time  1982   1982       TRUE 
-#>  7 time  time  1983   1983       TRUE 
-#>  8 time  time  1984   1984       TRUE 
-#>  9 time  time  1985   1985       TRUE 
-#> 10 time  time  1986   1986       TRUE 
-#> # ℹ 37 more rows
+#> $variables
+#> # A tibble: 5 × 6
+#>   code           text           elimination time  values      valueTexts 
+#>   <chr>          <chr>          <lgl>       <lgl> <list>      <list>     
+#> 1 age            age            TRUE        NA    <chr [100]> <chr [100]>
+#> 2 gender         gender         TRUE        NA    <chr [3]>   <chr [3]>  
+#> 3 place of birth place of birth TRUE        NA    <chr [3]>   <chr [3]>  
+#> 4 residence type residence type TRUE        NA    <chr [8]>   <chr [8]>  
+#> 5 time           time           NA          TRUE  <chr [47]>  <chr [47]>
 ```
 
 Codes from `values` columns can be used to query:

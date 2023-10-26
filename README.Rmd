@@ -42,7 +42,7 @@ statgl_search("population jan* 1st")
 
 ## Fetch
 
-The ID's found in search results are unique table ID's, that can be collected by `statgl_fetch`:
+The ID's found in search results are unique table ID's, which can be collected by `statgl_fetch`:
 
 ```{r}
 statgl_fetch("BEESTA")
