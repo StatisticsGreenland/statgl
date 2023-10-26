@@ -17,8 +17,8 @@
 #' statgl_fetch("BEXSTA")
 #' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
-statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
-                         .val_code = FALSE, .eliminate_rest = TRUE){
+statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
+                         .eliminate_rest = TRUE, url = NULL){
 
   if (!missing(url)) {
     message("`url` as parameter is deprecated. Please use `x`.\n")
@@ -57,7 +57,8 @@ statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
     the_rest <- setdiff(unlist(el_list), names(vls))
     rest_lst <- stats::setNames(
       replicate(length(the_rest), expr = px_all(), simplify = FALSE),
-      the_rest)
+      the_rest
+    )
 
     vls <- c(vls, rest_lst)
   }
@@ -69,12 +70,12 @@ statgl_fetch <- function(x, ..., url = NULL, .col_code = FALSE,
   api_response <- httr::POST(x, body = body)
 
   # Validate return status
-  httr::stop_for_status(api_response)
+  #httr::stop_for_status(api_response)
 
   # Get content
-  api_content <- suppressMessages(
-    httr::content(api_response, as = "text")
-  )
+    api_content <- suppressMessages(
+      httr::content(api_response, as = "text")
+    )
 
   # Get data
   text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
@@ -178,7 +179,7 @@ px_top <- function(top_n = 1) {
 #' @rdname px_top
 #' @export
 px_all <- function(pattern = "*") {
-  structure(pattern, .px_filter = "All")
+  structure(pattern, .px_filter = "all")
 }
 
 #' @rdname px_top
