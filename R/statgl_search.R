@@ -26,15 +26,21 @@ statgl_search <- function(
     returnclass = "tibble"
 ) {
 
+  # browser()
+
   query <- URLencode(query)
-  path <- gsub("^/", "", toupper(path))
+  #path <- gsub("^/", "", toupper(path))
 
   if(grepl("^https?://bank\\.stat\\.gl.*?/api/v", api_url) & nchar(path) > 2 & !grepl("/", path)) {
     path <- generate_subfolders(path)
     message(paste0("Trying path: ", path))
   }
 
-  api_url <- gsub("(?<=v1/)[^/]+", lang, api_url, perl = TRUE)
+  if(!(grepl("/api/v[0-9]/[a-z]{2}/", api_url))) {
+    api_url <- paste0(c(api_url, "api/v1/en"), collapse = "/")
+  }
+
+  api_url <- gsub("(?<=v[0-9]/)[^/]+", lang, api_url, perl = TRUE)
   api_url <- paste(api_url, path, sep = "/")
 
   search_result <- httr::content(httr::GET(
@@ -52,17 +58,19 @@ statgl_search <- function(
     if(query == "") {
       df$text <- trimws(gsub("<em>.*", "", df$text))
       df$path = paste0("/", path)
-    } else {
+    } else if("title" %in% names(df)) {
       df$title <- trimws(gsub("<em>.*", "", df$title))
       df$type <- "t"
     }
 
-    df$path <- gsub("/+", "/",  paste0(df$path, "/", df[[1]]))
+    if("path" %in% names(df)) {
+      df$path <- gsub("/+", "/",  paste0(df$path, "/", df[[1]]))
+    }
 
     df[[1]] <- sub("\\.(px|PX)$", "", df[[1]])
 
     df <- dplyr::select(
-      df, 1, dplyr::any_of(c("text", "title", "type")), "path",
+      df, 1, dplyr::any_of(c("text", "title", "type", "path")),
       dplyr::everything()
     )
 
