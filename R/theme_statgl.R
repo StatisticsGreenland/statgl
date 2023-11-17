@@ -13,7 +13,7 @@
 #' ggplot2::qplot(mpg, data = mtcars) + theme_statgl()
 theme_statgl <- function(base_size = 12, base_family = NULL, ...){
 
-  ggplot2::theme_minimal(base_family = base_family, base_size = base_size, ...) +
+  ggplot2::theme_minimal(base_family = base_family, base_size = base_size) +
     ggplot2::theme(
 
       # Plot title
@@ -40,6 +40,7 @@ theme_statgl <- function(base_size = 12, base_family = NULL, ...){
         fill = "white", color = statgl_cols("grey")
       ),
 
-    )
+    ) +
+    ggplot2::theme(...)
 }
 
