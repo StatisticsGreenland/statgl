@@ -7,10 +7,10 @@
 statgl_fetch(
   x,
   ...,
-  url = NULL,
   .col_code = FALSE,
   .val_code = FALSE,
-  .eliminate_rest = TRUE
+  .eliminate_rest = TRUE,
+  url = NULL
 )
 }
 \arguments{
@@ -18,13 +18,13 @@ statgl_fetch(
 
 \item{...}{Selection queries for variables}
 
-\item{url}{deprecated}
-
 \item{.col_code}{\code{TRUE}/\code{FALSE}. Display column names as code.}
 
 \item{.val_code}{\code{TRUE}/\code{FALSE}. Display cell values as code.}
 
 \item{.eliminate_rest}{\code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).}
+
+\item{url}{deprecated}
 }
 \description{
 Retrieve statbank data via URL

@@ -50,10 +50,10 @@ statgl_url <-
     api_url <-
       gsub("(?<=/v\\d/)[^/]+", lang, api_url, perl = TRUE)
 
-
     search_results <- statgl_search(
       searchtable, lang = lang, api_url = api_url, returnclass = "list"
     )
+
 
     for(i in search_results) {
       if(toupper(i[["id"]]) == toupper(searchtable)) {
