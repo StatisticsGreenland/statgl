@@ -5,7 +5,7 @@
 #'
 #' This is a development version, and design of the output will change!
 #'
-#' @param output Format of report. Must be \code{"html"} in current release.
+#' @param output Format of report.
 #' @param ... Additional arguments passed to rmarkdown::html_document
 #'
 #' @return
@@ -19,10 +19,18 @@ statgl_report <- function(output = "html", ...){
     stylesheet <- system.file("statgl.css", package = "statgl")
     rmarkdown::html_document(
       css = stylesheet,
-      anchor_sections = FALSE,
       ...
     )
-  }
 
-  warning("This is a development version of statgl_report(). Output is certain to change in later releases.")
+  } else if(output == "docx") {
+    word_template <- system.file("statgl.docx", package = "statgl")
+    rmarkdown::word_document(
+      reference_docx = word_template,
+      fig_width = 5.11811024,
+      fig_height = 2.75590551,
+      ...
+    )
+  } else if(output == "pretty_html") {
+    prettydoc::html_pretty(theme = "hpstr", highlight = "github", ...)
+  }
 }
