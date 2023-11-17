@@ -28,7 +28,7 @@ statgl_meta <- function(url, returnclass = "tibble") {
   tbl <- dplyr::summarise(
     dplyr::group_by(
       dplyr::bind_rows(tbl_list),
-      code, text, elimination, time),
+      dplyr::across(dplyr::any_of(c("code", "text", "elimination", "time")))),
     values = list(values), valueTexts = list(valueTexts),
     .groups = "drop")
 

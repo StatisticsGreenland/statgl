@@ -20,6 +20,8 @@
 statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
                          .eliminate_rest = TRUE, url = NULL){
 
+  #browser()
+
   if (!missing(url)) {
     message("`url` as parameter is deprecated. Please use `x`.\n")
   }
@@ -37,7 +39,7 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
 
   x <- URLencode(x)
 
-  validate_px(x)
+  #validate_px(x)
 
   # Gather query list
   vls <- rlang::dots_list(...)
