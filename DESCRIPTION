@@ -16,4 +16,5 @@ Imports:
     kableExtra,
     rjstat,
     rlang,
+    rmarkdown,
     tibble
