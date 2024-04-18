@@ -1,4 +1,16 @@
 #' Retrieve statbank data via URL
+#'
+#' @description
+#' This funtion retrive data from statistics banks via URL and hidden quiestions in a qury
+#'
+#' The variables is displayed by their text_code by default. This can be changed
+#' by setting .col_code = TRUE.
+#'
+#' The selection of variables should be given using their code values and not text values.
+#'
+#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
+#'
+#' @details
 #' The variables is displayed by their text_code by default. This can be changed
 #' by setting .col_code = TRUE.
 #'
@@ -13,7 +25,7 @@
 #' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).
 #' @param url deprecated
 #'
-#' @return
+#' @return return a dataframe / tibble with the data from the registry
 #' @export
 #'
 #' @importFrom utils URLencode
@@ -184,12 +196,12 @@ build_query <- function(vls, .format = "json-stat") {
 #' @param agg_file Aggregation file used to aggregate values in pxweb API
 #' @param ... Values selected from aggregation
 #'
-#' @return
+#' @return grep like search result
 #' @export
 #'
 #' @examples
 #' statgl_fetch(statgl_url("BEXST1"), time = px_top(5))
-#' statgl_fetch(statgl_url("BEXST1"), time = px_all("*5))
+#' statgl_fetch(statgl_url("BEXST1"), time = px_all("*5"))
 #' statgl_fetch(statgl_url("BEXST1"), age = px_agg("5-year.agg", "-4", "5-9", "10-14"))
 px_top <- function(top_n = 1) {
   structure(top_n, .px_filter = "Top")
