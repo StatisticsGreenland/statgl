@@ -1,4 +1,10 @@
 #' Retrieve statbank data via URL
+#' The variables is displayed by their text_code by default. This can be changed
+#' by setting .col_code = TRUE.
+#'
+#' The selection of variables should be given using their code values and not text values.
+#'
+#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
 #'
 #' @param x API url of statbank matrix
 #' @param ... Selection queries for variables
@@ -11,6 +17,7 @@
 #' @export
 #'
 #' @importFrom utils URLencode
+#'
 #'
 #' @examples
 #' statgl_fetch("BEXSTA")
@@ -67,10 +74,8 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
 
   # Build query
   body <- build_query(vls)
-
   # Post to server
   api_response <- httr::POST(x, body = body)
-
   # Validate return status
   #httr::stop_for_status(api_response)
 
@@ -79,9 +84,21 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
       httr::content(api_response, as = "text")
     )
 
-  # Get data
-  text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+    # Get data
+  text_df <- tryCatch(rjstat::fromJSONstat(api_content, naming = "label")[[1]],
+             error = function(e) {
+             e
+             print("The recieved content:")
+             print(api_content)
+             print("is not json compatible. This is likely due to a bad query.")
+             print("Investigate correct column codes with statgl_meta()")
+             print(e)
+             stop("Stopped execution due to the error above")}
+           )
+
+
   code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+
 
   # Switch between code and text
   if(is.logical(.val_code)) {
