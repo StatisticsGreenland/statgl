@@ -7,7 +7,7 @@
 statgl_report(output = "html", ...)
 }
 \arguments{
-\item{output}{Format of report. Must be \code{"html"} in current release.}
+\item{output}{Format of report.}
 
 \item{...}{Additional arguments passed to rmarkdown::html_document}
 }
