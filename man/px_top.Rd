@@ -24,6 +24,9 @@ values}
 
 \item{...}{Values selected from aggregation}
 }
+\value{
+grep like search result
+}
 \description{
 Helper functions to make custom filters in pxweb API queries:
 }
@@ -33,4 +36,9 @@ Helper functions to make custom filters in pxweb API queries:
 \item \code{\link[=px_all]{px_all()}}: API returns all values, matching a wildcard pattern
 \item \code{\link[=px_agg]{px_agg()}}; Instructs API to use aggregations, and which values to select.
 }
+}
+\examples{
+statgl_fetch(statgl_url("BEXST1"), time = px_top(5))
+statgl_fetch(statgl_url("BEXST1"), time = px_all("*5"))
+statgl_fetch(statgl_url("BEXST1"), age = px_agg("5-year.agg", "-4", "5-9", "10-14"))
 }

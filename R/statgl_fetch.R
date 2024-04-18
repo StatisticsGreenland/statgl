@@ -1,5 +1,23 @@
 #' Retrieve statbank data via URL
 #'
+#' @description
+#' This funtion retrive data from statistics banks via URL and hidden quiestions in a qury
+#'
+#' The variables is displayed by their text_code by default. This can be changed
+#' by setting .col_code = TRUE.
+#'
+#' The selection of variables should be given using their code values and not text values.
+#'
+#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
+#'
+#' @details
+#' The variables is displayed by their text_code by default. This can be changed
+#' by setting .col_code = TRUE.
+#'
+#' The selection of variables should be given using their code values and not text values.
+#'
+#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
+#'
 #' @param x API url of statbank matrix
 #' @param ... Selection queries for variables
 #' @param .col_code \code{TRUE}/\code{FALSE}. Display column names as code.
@@ -7,10 +25,11 @@
 #' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).
 #' @param url deprecated
 #'
-#' @return
+#' @return return a dataframe / tibble with the data from the registry
 #' @export
 #'
 #' @importFrom utils URLencode
+#'
 #'
 #' @examples
 #' statgl_fetch("BEXSTA")
@@ -67,10 +86,8 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
 
   # Build query
   body <- build_query(vls)
-
   # Post to server
   api_response <- httr::POST(x, body = body)
-
   # Validate return status
   #httr::stop_for_status(api_response)
 
@@ -79,9 +96,21 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
       httr::content(api_response, as = "text")
     )
 
-  # Get data
-  text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+    # Get data
+  text_df <- tryCatch(rjstat::fromJSONstat(api_content, naming = "label")[[1]],
+             error = function(e) {
+             e
+             print("The recieved content:")
+             print(api_content)
+             print("is not json compatible. This is likely due to a bad query.")
+             print("Investigate correct column codes with statgl_meta()")
+             print(e)
+             stop("Stopped execution due to the error above")}
+           )
+
+
   code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+
 
   # Switch between code and text
   if(is.logical(.val_code)) {
@@ -167,12 +196,12 @@ build_query <- function(vls, .format = "json-stat") {
 #' @param agg_file Aggregation file used to aggregate values in pxweb API
 #' @param ... Values selected from aggregation
 #'
-#' @return
+#' @return grep like search result
 #' @export
 #'
 #' @examples
 #' statgl_fetch(statgl_url("BEXST1"), time = px_top(5))
-#' statgl_fetch(statgl_url("BEXST1"), time = px_all("*5))
+#' statgl_fetch(statgl_url("BEXST1"), time = px_all("*5"))
 #' statgl_fetch(statgl_url("BEXST1"), age = px_agg("5-year.agg", "-4", "5-9", "10-14"))
 px_top <- function(top_n = 1) {
   structure(top_n, .px_filter = "Top")

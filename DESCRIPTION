@@ -1,8 +1,9 @@
 Package: statgl
 Title: Statistics Greenland R package
-Version: 0.2.2.9011
+Version: 0.2.2.92
 Authors@R: 
     person("Emil", "Malta", role = c("aut", "cre"),  email = "emim@stat.gl")
+    person("Alexander", "Krabbe", role = c("cre"),  email = "alkr@stat.gl")
 Description: Query and visualise data published by Statistics Greenland.
 License: MIT + file LICENSE
 Encoding: UTF-8

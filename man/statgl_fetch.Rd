@@ -26,8 +26,26 @@ statgl_fetch(
 
 \item{url}{deprecated}
 }
+\value{
+return a dataframe / tibble with the data from the registry
+}
 \description{
-Retrieve statbank data via URL
+This funtion retrive data from statistics banks via URL and hidden quiestions in a qury
+
+The variables is displayed by their text_code by default. This can be changed
+by setting .col_code = TRUE.
+
+The selection of variables should be given using their code values and not text values.
+
+These can be found by using the statgl_meta() function prior to using statgl_fetch()
+}
+\details{
+The variables is displayed by their text_code by default. This can be changed
+by setting .col_code = TRUE.
+
+The selection of variables should be given using their code values and not text values.
+
+These can be found by using the statgl_meta() function prior to using statgl_fetch()
 }
 \examples{
 statgl_fetch("BEXSTA")
