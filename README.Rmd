@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# statgl
+# statgl <img src="man/figures/logo.png" align="right" height="139" alt="" />
 
 Query and visualize data published by Statistics Greenland.
 

@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# statgl
+# statgl <img src="man/figures/logo.png" align="right" height="139" alt="" />
 
 Query and visualize data published by Statistics Greenland.
 
@@ -19,7 +19,7 @@ To load the package contents to the R environment, run:
 
 ``` r
 library(statgl)
-#> R Statistics Greenland (0.2.2.9009)
+#> R Statistics Greenland (0.2.2.92)
 ```
 
 ## Search
@@ -28,20 +28,21 @@ Use `statgl_search` to do a freetext search of the Greenland Statbank:
 
 ``` r
 statgl_search("population jan* 1st")
-#> # A tibble: 137 × 6
+#> # A tibble: 12 × 6
 #>    id       title                                    type  path  score published
 #>    <chr>    <chr>                                    <chr> <chr> <dbl> <chr>    
-#>  1 BEXSTA   Population January 1st 1977-2023         t     /BE/… 0.342 2023-02-…
-#>  2 BEXST1   Population January 1st 1977-2020         t     /BE/… 0.342 2020-02-…
-#>  3 BEXSTAYY Population January 1st, fixed residence… t     /BE/… 0.290 2023-02-…
-#>  4 BEXSTB   Population in Municipalities January 1s… t     /BE/… 0.290 2023-02-…
-#>  5 BEXSTC   Population in Districts and Municipalit… t     /BE/… 0.290 2023-02-…
-#>  6 BEXSTD   Population in Localities January 1st 19… t     /BE/… 0.290 2023-02-…
-#>  7 BEXSTDt  Population seniority in Localities Janu… t     /BE/… 0.290 2023-02-…
-#>  8 BEXSTNUK Population In Nuuk January 1st by cityd… t     /BE/… 0.290 2023-02-…
-#>  9 BEXST2A  Population in  municipalities(2018) Jan… t     /BE/… 0.290 2017-10-…
-#> 10 BEXST2   Population in Municipalities January 1s… t     /BE/… 0.290 2020-02-…
-#> # ℹ 127 more rows
+#>  1 BEXSTA   Population January 1st 1977-2024         t     /BE/… 0.344 2024-02-…
+#>  2 BEXST1   Population January 1st 1977-2020         t     /BE/… 0.344 2020-02-…
+#>  3 BEXSTAYY Population January 1st, fixed residence… t     /BE/… 0.292 2024-05-…
+#>  4 BEXSTB   Population in Municipalities January 1s… t     /BE/… 0.292 2024-02-…
+#>  5 BEXSTC   Population in Districts and Municipalit… t     /BE/… 0.292 2024-02-…
+#>  6 BEXSTD   Population in Localities January 1st 19… t     /BE/… 0.292 2024-02-…
+#>  7 BEXSTDt  Population seniority in Localities Janu… t     /BE/… 0.292 2024-02-…
+#>  8 BEXSTNUK Population In Nuuk January 1st by cityd… t     /BE/… 0.292 2024-02-…
+#>  9 BEXST2A  Population in  municipalities(2018) Jan… t     /BE/… 0.292 2017-10-…
+#> 10 BEXST2   Population in Municipalities January 1s… t     /BE/… 0.292 2020-02-…
+#> 11 BEXST3   Population in Districts and Municipalit… t     /BE/… 0.292 2020-02-…
+#> 12 BEXST4   Population in Localities January 1st 19… t     /BE/… 0.292 2020-06-…
 ```
 
 ## Fetch
@@ -51,7 +52,7 @@ collected by `statgl_fetch`:
 
 ``` r
 statgl_fetch("BEESTA")
-#> # A tibble: 47 × 2
+#> # A tibble: 48 × 2
 #>    time  value
 #>    <chr> <int>
 #>  1 1977  49717
@@ -64,7 +65,7 @@ statgl_fetch("BEESTA")
 #>  8 1984  52347
 #>  9 1985  52940
 #> 10 1986  53406
-#> # ℹ 37 more rows
+#> # ℹ 38 more rows
 ```
 
 Eliminable variables are removed by default. To see which variables can
@@ -86,14 +87,14 @@ statgl_meta("BEESTA")
 #> 2 gender         gender         TRUE        NA    <chr [3]>   <chr [3]>  
 #> 3 place of birth place of birth TRUE        NA    <chr [3]>   <chr [3]>  
 #> 4 residence type residence type TRUE        NA    <chr [8]>   <chr [8]>  
-#> 5 time           time           NA          TRUE  <chr [47]>  <chr [47]>
+#> 5 time           time           NA          TRUE  <chr [48]>  <chr [48]>
 ```
 
 Codes from `values` columns can be used to query:
 
 ``` r
 statgl_fetch("BEESTA", gender = c("M", "K"), age = 0:99)
-#> # A tibble: 9,400 × 4
+#> # A tibble: 9,600 × 4
 #>    gender age   time  value
 #>    <chr>  <chr> <chr> <int>
 #>  1 Men    0     1977    428
@@ -106,7 +107,7 @@ statgl_fetch("BEESTA", gender = c("M", "K"), age = 0:99)
 #>  8 Men    0     1984    494
 #>  9 Men    0     1985    519
 #> 10 Men    0     1986    564
-#> # ℹ 9,390 more rows
+#> # ℹ 9,590 more rows
 ```
 
 Use `.eliminate_rest = FALSE` to show all values of remaining
@@ -114,7 +115,7 @@ eliminables:
 
 ``` r
 statgl_fetch("BEXSTA", .eliminate_rest = FALSE)
-#> # A tibble: 338,400 × 6
+#> # A tibble: 345,600 × 6
 #>    `place of birth` gender age   `residence type` time  value
 #>    <chr>            <chr>  <chr> <chr>            <chr> <int>
 #>  1 Total            Total  0     Total            1977    820
@@ -127,7 +128,7 @@ statgl_fetch("BEXSTA", .eliminate_rest = FALSE)
 #>  8 Total            Total  0     Total            1984    946
 #>  9 Total            Total  0     Total            1985    996
 #> 10 Total            Total  0     Total            1986   1115
-#> # ℹ 338,390 more rows
+#> # ℹ 345,590 more rows
 ```
 
 ## ggplot
