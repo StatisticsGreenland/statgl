@@ -4,7 +4,7 @@
 \alias{statgl_table}
 \title{Automatic statgl table}
 \usage{
-statgl_table(df, year_col, ...)
+statgl_table(df, year_col, replace_0s = FALSE, ...)
 }
 \arguments{
 \item{df}{A data frame}
