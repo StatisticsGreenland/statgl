@@ -9,7 +9,9 @@
 #'
 #' @examples
 #' statgl_plot(mtcars, x = wt, y = mpg, group = cyl, type = "scatter")
-statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL, color = NULL) {
+statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL,
+                        color = NULL,
+                        title = NULL, subtitle = NULL, caption = NULL) {
   # Capture expressions
   x <- enexpr(x)
   y <- enexpr(y)
@@ -36,5 +38,23 @@ statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL, colo
     args$name <- name
   }
 
-  rlang::exec(highcharter::hchart, !!!args)
+  # Create chart
+  chart <- rlang::exec(highcharter::hchart, !!!args)
+
+  # Add title if provided
+  if (!is.null(title)) {
+    chart <- highcharter::hc_title(chart, text = title, align = "left")
+  }
+
+  # Add subtitle if provided
+  if (!is.null(subtitle)) {
+    chart <- chart %>% highcharter::hc_subtitle(text = subtitle, align = "left")
+  }
+
+  # Add caption if provided
+  if (!is.null(caption)) {
+    chart <- chart %>% highcharter::hc_caption(text = caption, align = "right")
+  }
+
+  chart
 }
