@@ -76,12 +76,12 @@ statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL
 
   # Add subtitle if provided
   if (!is.null(subtitle)) {
-    chart <- chart %>% highcharter::hc_subtitle(text = subtitle, align = "left")
+    chart <- highcharter::hc_subtitle(chart, text = subtitle, align = "left")
   }
 
   # Add caption if provided
   if (!is.null(caption)) {
-    chart <- chart %>% highcharter::hc_caption(text = caption, align = "right")
+    chart <- highcharter::hc_caption(chart, text = caption, align = "right")
   }
 
   # Add axis labels if provided
