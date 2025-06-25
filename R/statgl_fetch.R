@@ -144,7 +144,7 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
 
 
   # Return
-  tibble::as_tibble(rtn)
+  readr::type_convert(tibble::as_tibble(rtn), na = c("", "NA"))
 }
 
 # Query builder ----------------------------------------------------------------

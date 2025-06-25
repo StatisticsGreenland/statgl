@@ -16,6 +16,7 @@ Imports:
     httr,
     jsonlite,
     kableExtra,
+    readr,
     rjstat,
     rlang,
     rmarkdown,
