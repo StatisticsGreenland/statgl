@@ -1,14 +1,28 @@
-#' Create a highcharter plot from a data frame
+#' Create a highcharter plot with smart defaults
 #'
-#' @param data A data frame
-#' @param x, y, group Columns mapped to x, y, and group aesthetics
-#' @param type A string specifying the plot type (e.g., "line", "column", "scatter")
+#' A wrapper around `highcharter::hchart()` that makes it easy to create line, bar, and column plots with automatic titles, axis labels, tooltips, and localized number formatting.
+#' If `show_last_value = TRUE`, it shows value labels on:
+#' - only the last point in each line (`type = "line"` or `"spline"`)
+#' - all bars for `type = "bar"` or `"column"`
 #'
-#' @return A highcharter plot object
+#' @param df A data frame.
+#' @param x, y Bare column names for x and y aesthetics. `y` defaults to `value`.
+#' @param type A string specifying the chart type (e.g., `"line"`, `"column"`, `"bar"`, `"scatter"`).
+#' @param name An optional name for the series.
+#' @param group A bare column name to split data into series (for grouped plots).
+#' @param title, subtitle, caption Optional text elements to add to the chart.
+#' @param show_last_value Logical; if `TRUE`, adds data labels to the last value of each line, or all bars in bar/column charts.
+#' @param xlab, ylab Axis labels.
+#' @param tooltip Optional JavaScript string for a custom tooltip formatter.
+#' @param locale Locale code used to control number formatting (default is `"en"`; use `"da"` or `"kl"` for Danish/Greenlandic-style formatting).
+#'
+#' @return A `highchart` object.
 #' @export
 #'
 #' @examples
-#' statgl_plot(mtcars, x = wt, y = mpg, group = cyl, type = "scatter")
+#' statgl_plot(mtcars, x = wt, y = mpg, type = "line")
+#' statgl_plot(mtcars, x = cyl, y = mpg, type = "column", show_last_value = TRUE)
+#' statgl_plot(mpg, x = displ, y = hwy, group = class, type = "line", locale = "da")
 statgl_plot <- function(df, x, y = value, type = "line", name = NULL, group = NULL,
                         title = NULL, subtitle = NULL, caption = NULL,
                         show_last_value = TRUE,
