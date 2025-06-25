@@ -22,7 +22,7 @@
 #' @examples
 #' sstatgl_plot(statgl_fetch("BEXSTA"), time)
 #' statgl_plot(statgl_fetch("BEXSTA", time = px_top(), gender = c("M", "K")), x = gender, type = "bar")
-statgl_plot <- function(df, x, y = value, type = "line", name = NULL, group = NULL,
+statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL,
                         title = NULL, subtitle = NULL, caption = NULL,
                         show_last_value = TRUE,
                         xlab = "",
@@ -30,14 +30,29 @@ statgl_plot <- function(df, x, y = value, type = "line", name = NULL, group = NU
                         tooltip = NULL,
                         locale = "en") {
   # Capture expressions
-  x <- enexpr(x)
-  y <- enexpr(y)
-  group <- enexpr(group)
+  x <- rlang::enexpr(x)
+  y <- rlang::enexpr(y)
+  group <- rlang::enexpr(group)
 
   # Build hcaes() mapping only including non-NULL aesthetics
-  mapping <- expr(highcharter::hcaes(!!x, !!y))
+  mapping <- rlang::expr(highcharter::hcaes(!!x, !!y))
   if (!is.null(group)) {
     mapping <- rlang::call_modify(mapping, group = group)
+  }
+
+  # Infer type if not provided
+  if (missing(type) || is.null(type)) {
+    x_vals <- df[[rlang::as_name(x)]]
+
+    if (inherits(x_vals, c("Date", "POSIXct")) ||
+        is.numeric(x_vals) && all(x_vals %% 1 == 0) && length(unique(x_vals)) > 10) {
+      type <- "line"
+    } else if (is.character(x_vals) || is.factor(x_vals) ||
+               (is.numeric(x_vals) && length(unique(x_vals)) <= 12)) {
+      type <- "column"
+    } else {
+      type <- "scatter"
+    }
   }
 
   # Build hchart() args
