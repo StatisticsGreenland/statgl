@@ -9,18 +9,32 @@
 #'
 #' @examples
 #' statgl_plot(mtcars, x = wt, y = mpg, group = cyl, type = "scatter")
-statgl_plot <- function(data, x, y, group = NULL, type = "line") {
-  stopifnot(requireNamespace("highcharter", quietly = TRUE))
+statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL, color = NULL) {
+  # Capture expressions
+  x <- enexpr(x)
+  y <- enexpr(y)
+  group <- enexpr(group)
+  color <- enexpr(color)
 
-  x <- rlang::enquo(x)
-  y <- rlang::enquo(y)
-  group <- rlang::enquo(group)
-
-  aes <- if (rlang::quo_is_null(group)) {
-    highcharter::hcaes(x = !!x, y = !!y)
-  } else {
-    highcharter::hcaes(x = !!x, y = !!y, group = !!group)
+  # Build hcaes() mapping only including non-NULL aesthetics
+  mapping <- expr(highcharter::hcaes(!!x, !!y))
+  if (!is.null(group)) {
+    mapping <- rlang::call_modify(mapping, group = group)
+  }
+  if (!is.null(color)) {
+    mapping <- rlang::call_modify(mapping, color = color)
   }
 
-  highcharter::hchart(data = data, type = type, mapping = aes)
+  # Build hchart() args
+  args <- rlang::dots_list(
+    object = df,
+    type = type,
+    mapping = eval(mapping),
+    .named = TRUE
+  )
+  if (!is.null(name)) {
+    args$name <- name
+  }
+
+  rlang::exec(highcharter::hchart, !!!args)
 }
