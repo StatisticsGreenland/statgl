@@ -20,9 +20,8 @@
 #' @export
 #'
 #' @examples
-#' statgl_plot(mtcars, x = wt, y = mpg, type = "line")
-#' statgl_plot(mtcars, x = cyl, y = mpg, type = "column", show_last_value = TRUE)
-#' statgl_plot(mpg, x = displ, y = hwy, group = class, type = "line", locale = "da")
+#' sstatgl_plot(statgl_fetch("BEXSTA"), time)
+#' statgl_plot(statgl_fetch("BEXSTA", time = px_top(), gender = c("M", "K")), x = gender, type = "bar")
 statgl_plot <- function(df, x, y = value, type = "line", name = NULL, group = NULL,
                         title = NULL, subtitle = NULL, caption = NULL,
                         show_last_value = TRUE,
