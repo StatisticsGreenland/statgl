@@ -9,22 +9,22 @@
 #'
 #' @examples
 #' statgl_plot(mtcars, x = wt, y = mpg, group = cyl, type = "scatter")
-statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL,
-                        color = NULL,
-                        title = NULL, subtitle = NULL, caption = NULL) {
+statgl_plot <- function(df, x, y = value, type = "line", name = NULL, group = NULL,
+                        title = NULL, subtitle = NULL, caption = NULL,
+                        show_last_value = TRUE,
+                        xlab = "",
+                        ylab = "",
+                        tooltip = NULL,
+                        locale = "en") {
   # Capture expressions
   x <- enexpr(x)
   y <- enexpr(y)
   group <- enexpr(group)
-  color <- enexpr(color)
 
   # Build hcaes() mapping only including non-NULL aesthetics
   mapping <- expr(highcharter::hcaes(!!x, !!y))
   if (!is.null(group)) {
     mapping <- rlang::call_modify(mapping, group = group)
-  }
-  if (!is.null(color)) {
-    mapping <- rlang::call_modify(mapping, color = color)
   }
 
   # Build hchart() args
@@ -56,5 +56,52 @@ statgl_plot <- function(df, x, y, type = "line", name = NULL, group = NULL,
     chart <- chart %>% highcharter::hc_caption(text = caption, align = "right")
   }
 
+  # Add axis labels if provided
+  if (!is.null(xlab)) {
+    chart <- highcharter::hc_xAxis(chart, title = list(text = xlab))
+  }
+  if (!is.null(ylab)) {
+    chart <- highcharter::hc_yAxis(chart, title = list(text = ylab))
+  }
+
+  # Optional tooltip formatter (JS string)
+  if (!is.null(tooltip)) {
+    chart <- highcharter::hc_tooltip(chart, formatter = highcharter::JS(tooltip))
+  }
+
+  if (show_last_value) {
+    decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
+    big_mark     <- if (locale %in% c("da", "kl")) "." else ","
+    if (type %in% c("line", "spline")) {
+      chart <- highcharter::hc_plotOptions(chart, series = list(
+        dataLabels = list(
+          enabled = TRUE,
+          formatter = highcharter::JS(sprintf(
+            "function() {
+           return (this.point.index === this.series.data.length - 1)
+             ? Highcharts.numberFormat(this.y, 0, '%s', '%s')
+             : null;
+         }",
+            decimal_mark, big_mark
+          ))
+        )
+      ))
+    } else if (type %in% c("bar", "column")) {
+    decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
+    big_mark     <- if (locale %in% c("da", "kl")) "." else ","
+    chart <-
+      highcharter::hc_plotOptions(chart, series = list(
+        dataLabels = list(
+          enabled = TRUE,
+          formatter = highcharter::JS(sprintf("
+  function() {
+    return Highcharts.numberFormat(this.y, 0, '%s', '%s');
+  }", decimal_mark, big_mark))
+        )
+      ))
+  }
+  }
+
   chart
+
 }
