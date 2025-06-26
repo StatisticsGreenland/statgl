@@ -1,6 +1,6 @@
 Package: statgl
 Title: Statistics Greenland R package
-Version: 0.2.2.97
+Version: 0.2.2.98
 Authors@R: 
     person("Emil", "Malta", role = c("aut", "cre"),  email = "emim@stat.gl")
     person("Alexander", "Krabbe", role = c("cre"),  email = "alkr@stat.gl")
