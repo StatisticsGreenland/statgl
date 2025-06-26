@@ -105,11 +105,11 @@ statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL
         dataLabels = list(
           enabled = TRUE,
           formatter = highcharter::JS(sprintf(
-            "function() {
+            'function() {
            return (this.point.index === this.series.data.length - 1)
-             ? Highcharts.numberFormat(this.y, 0, '%s', '%s')
+             ? Highcharts.numberFormat(this.y, 0, "%s", "%s")
              : null;
-         }",
+         }',
             decimal_mark, big_mark
           ))
         )
@@ -121,10 +121,10 @@ statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL
       highcharter::hc_plotOptions(chart, series = list(
         dataLabels = list(
           enabled = TRUE,
-          formatter = highcharter::JS(sprintf("
+          formatter = highcharter::JS(sprintf('
   function() {
-    return Highcharts.numberFormat(this.y, 0, '%s', '%s');
-  }", decimal_mark, big_mark))
+    return Highcharts.numberFormat(this.y, 0, "%s", "%s");
+  }', decimal_mark, big_mark))
         )
       ))
   }
