@@ -144,7 +144,30 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
 
 
   # Return
-  readr::type_convert(tibble::as_tibble(rtn), na = c("", "NA"))
+
+  # Ensure input is a tibble
+  rtn <- tibble::as_tibble(rtn)
+
+  # Identify columns where all non-missing values are "F" or "T"
+  ft_cols <- character()
+  for (col in names(rtn)) {
+    values <- rtn[[col]]
+    non_na_values <- values[!is.na(values)]
+    if (length(non_na_values) > 0 && all(non_na_values %in% c("F", "T"))) {
+      ft_cols <- c(ft_cols, col)
+    }
+  }
+
+  # Create col_types object
+  col_types <- readr::cols(.default = readr::col_guess())
+  for (col in ft_cols) {
+    col_types$cols[[col]] <- readr::col_character()
+  }
+
+  # Apply type_convert with custom col_types
+  rtn <- readr::type_convert(rtn, col_types = col_types, na = c("", "NA"))
+
+  rtn
 }
 
 # Query builder ----------------------------------------------------------------
