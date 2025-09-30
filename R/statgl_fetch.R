@@ -36,9 +36,14 @@
 #' statgl_fetch("BEXSTA")
 #' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
-statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
-                         .eliminate_rest = TRUE, url = NULL){
-
+statgl_fetch <- function(
+  x,
+  ...,
+  .col_code = FALSE,
+  .val_code = FALSE,
+  .eliminate_rest = TRUE,
+  url = NULL
+) {
   #browser()
 
   if (!missing(url)) {
@@ -64,13 +69,12 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
   vls <- rlang::dots_list(...)
 
   # Check if other variables should be eliminated
-  if(!.eliminate_rest) {
-
+  if (!.eliminate_rest) {
     sgl_meta <- statgl_meta(x, "list")[["variables"]]
     el_list <- vector("list", length = length(sgl_meta))
 
-    for(i in seq_along(sgl_meta)) {
-      if("elimination" %in% names(sgl_meta[[i]])) {
+    for (i in seq_along(sgl_meta)) {
+      if ("elimination" %in% names(sgl_meta[[i]])) {
         el_list[[i]] <- sgl_meta[[i]][["code"]]
       }
     }
@@ -92,56 +96,55 @@ statgl_fetch <- function(x, ..., .col_code = FALSE, .val_code = FALSE,
   #httr::stop_for_status(api_response)
 
   # Get content
-    api_content <- suppressMessages(
-      httr::content(api_response, as = "text")
-    )
+  api_content <- suppressMessages(
+    httr::content(api_response, as = "text")
+  )
 
-    # Get data
-  text_df <- tryCatch(rjstat::fromJSONstat(api_content, naming = "label")[[1]],
-             error = function(e) {
-             e
-             print("The recieved content:")
-             print(api_content)
-             print("is not json compatible. This is likely due to a bad query.")
-             print("Investigate correct column codes with statgl_meta()")
-             print(e)
-             stop("Stopped execution due to the error above")}
-           )
-
+  # Get data
+  text_df <- tryCatch(
+    rjstat::fromJSONstat(api_content, naming = "label")[[1]],
+    error = function(e) {
+      e
+      print("The recieved content:")
+      print(api_content)
+      print("is not json compatible. This is likely due to a bad query.")
+      print("Investigate correct column codes with statgl_meta()")
+      print(e)
+      stop("Stopped execution due to the error above")
+    }
+  )
 
   code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
 
-
   # Switch between code and text
-  if(is.logical(.val_code)) {
-    if(.val_code) {
+  if (is.logical(.val_code)) {
+    if (.val_code) {
       rtn <- code_df
     } else {
       rtn <- text_df
     }
-  } else if(is.character(.val_code)){
+  } else if (is.character(.val_code)) {
     rtn <- text_df
-    for(i in .val_code) {
+    for (i in .val_code) {
       idx <- which(names(code_df) == i)
-      rtn[,idx] <- code_df[,idx]
+      rtn[, idx] <- code_df[, idx]
     }
   }
 
-  if(is.logical(.col_code)){
-    if(.col_code) {
+  if (is.logical(.col_code)) {
+    if (.col_code) {
       names(rtn) <- names(code_df)
     } else {
       names(rtn) <- names(text_df)
     }
-  } else if(is.character(.col_code)){
+  } else if (is.character(.col_code)) {
     nms <- names(text_df)
-    for(i in .col_code) {
+    for (i in .col_code) {
       idx <- which(names(code_df) == i)
       nms[idx] <- names(code_df)[idx]
     }
     names(rtn) <- nms
   }
-
 
   # Return
 
@@ -178,8 +181,17 @@ build_query <- function(vls, .format = "json-stat") {
 
   if (length(vls) != 0) {
     for (i in seq_along(vls)) {
+      # Check if the value is "*" and convert to px_all()
+      if (identical(vls[[i]], "*")) {
+        vls[[i]] <- px_all("*")
+      }
+
       attr_list <- names(attributes(vls[[i]]))
-      is_px_filter <- ifelse(is.null(attr_list), FALSE, attr_list == ".px_filter")
+      is_px_filter <- ifelse(
+        is.null(attr_list),
+        FALSE,
+        attr_list == ".px_filter"
+      )
 
       fff <- if (is_px_filter) {
         attr(vls[[i]], ".px_filter")
@@ -197,7 +209,10 @@ build_query <- function(vls, .format = "json-stat") {
     }
   }
 
-  returner <- list(query = returner, response = list(format = jsonlite::unbox(.format)))
+  returner <- list(
+    query = returner,
+    response = list(format = jsonlite::unbox(.format))
+  )
   jsonlite::toJSON(returner)
 }
 
@@ -241,4 +256,3 @@ px_all <- function(pattern = "*") {
 px_agg <- function(agg_file, ...) {
   structure(c(...), .px_filter = paste0("agg:", agg_file))
 }
-
