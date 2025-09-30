@@ -42,135 +42,79 @@ statgl_fetch <- function(
   .col_code = FALSE,
   .val_code = FALSE,
   .eliminate_rest = TRUE,
+  .chunk_size = NULL,
   url = NULL
 ) {
-  #browser()
-
-  if (!missing(url)) {
-    message("`url` as parameter is deprecated. Please use `x`.\n")
+  # Restore the original URL handling logic
+  if (!is.null(url)) {
+    lifecycle::deprecate_warn("0.2.0", "statgl_fetch(url)", "statgl_fetch(x)")
+    x <- url
   }
 
-  # Looks up Greenland API tables if not URL
-  if (!is_valid_url(x)) {
-    x <- toupper(x)
-    lang <- get_language(substr(x, 3, 3))
-    if (is.na(lang)) {
-      lang <- "en"
-    }
-    x <- paste0(substr(x, 1, 2), "X", substr(x, 4, nchar(x)))
-    x <- statgl_url(x, lang = lang)
+  # Convert table code to URL if needed
+  if (!grepl("^https?://", x)) {
+    x <- statgl_url(x)
   }
 
-  x <- URLencode(x)
-
-  #validate_px(x)
-
-  # Gather query list
   vls <- rlang::dots_list(...)
 
-  # Check if other variables should be eliminated
+  # Handle .eliminate_rest = FALSE - build query for all variables
   if (!.eliminate_rest) {
-    sgl_meta <- statgl_meta(x, "list")[["variables"]]
-    el_list <- vector("list", length = length(sgl_meta))
+    # Get metadata and add px_all("*") for eliminable variables not already specified
+    meta <- statgl_meta(x, "list")
+    for (var in meta$variables) {
+      # Check if variable is eliminable (default selected subset)
+      is_eliminable <- if (is.null(var$elimination)) {
+        FALSE
+      } else if (is.logical(var$elimination)) {
+        var$elimination # TRUE means eliminable
+      } else if (is.character(var$elimination)) {
+        tolower(var$elimination) %in% c("true", "yes", "1")
+      } else {
+        FALSE
+      }
 
-    for (i in seq_along(sgl_meta)) {
-      if ("elimination" %in% names(sgl_meta[[i]])) {
-        el_list[[i]] <- sgl_meta[[i]][["code"]]
+      # For eliminable variables not already specified by user, request all values
+      if (is_eliminable && !var$code %in% names(vls)) {
+        # Added the second condition
+        vls[[var$code]] <- px_all("*")
       }
     }
-
-    the_rest <- setdiff(unlist(el_list), names(vls))
-    rest_lst <- stats::setNames(
-      replicate(length(the_rest), expr = px_all(), simplify = FALSE),
-      the_rest
-    )
-
-    vls <- c(vls, rest_lst)
   }
 
-  # Build query
-  body <- build_query(vls)
-  # Post to server
+  # Try the query first - if it fails with 403, chunk it
+  body <- build_query(vls, .format = "json-stat")
   api_response <- httr::POST(x, body = body)
-  # Validate return status
-  #httr::stop_for_status(api_response)
 
-  # Get content
-  api_content <- suppressMessages(
-    httr::content(api_response, as = "text")
-  )
+  # If successful, proceed normally
+  if (!httr::http_error(api_response)) {
+    api_content <- httr::content(api_response, as = "text")
+    text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+    code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+    return(process_dataframe(text_df, code_df, .val_code, .col_code))
+  }
 
-  # Get data
-  text_df <- tryCatch(
-    rjstat::fromJSONstat(api_content, naming = "label")[[1]],
-    error = function(e) {
-      e
-      print("The recieved content:")
-      print(api_content)
-      print("is not json compatible. This is likely due to a bad query.")
-      print("Investigate correct column codes with statgl_meta()")
-      print(e)
-      stop("Stopped execution due to the error above")
-    }
-  )
+  # If 403 error, try chunking
+  if (httr::status_code(api_response) == 403) {
+    message("Query too large, attempting to chunk...")
+    return(chunk_large_query(x, vls, .col_code, .val_code))
+  }
 
+  # For other HTTP errors
+  if (httr::http_error(api_response)) {
+    api_content <- httr::content(api_response, as = "text")
+    cat("The received content:\n")
+    cat(api_content, "\n")
+    cat("is not json compatible. This is likely due to a bad query.\n")
+    cat("Investigate correct column codes with statgl_meta()\n")
+    stop("API request failed with status ", httr::status_code(api_response))
+  }
+
+  # Normal processing fallback
+  api_content <- httr::content(api_response, as = "text")
+  text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
   code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
-
-  # Switch between code and text
-  if (is.logical(.val_code)) {
-    if (.val_code) {
-      rtn <- code_df
-    } else {
-      rtn <- text_df
-    }
-  } else if (is.character(.val_code)) {
-    rtn <- text_df
-    for (i in .val_code) {
-      idx <- which(names(code_df) == i)
-      rtn[, idx] <- code_df[, idx]
-    }
-  }
-
-  if (is.logical(.col_code)) {
-    if (.col_code) {
-      names(rtn) <- names(code_df)
-    } else {
-      names(rtn) <- names(text_df)
-    }
-  } else if (is.character(.col_code)) {
-    nms <- names(text_df)
-    for (i in .col_code) {
-      idx <- which(names(code_df) == i)
-      nms[idx] <- names(code_df)[idx]
-    }
-    names(rtn) <- nms
-  }
-
-  # Return
-
-  # Ensure input is a tibble
-  rtn <- tibble::as_tibble(rtn)
-
-  # Identify columns where all non-missing values are "F" or "T"
-  ft_cols <- character()
-  for (col in names(rtn)) {
-    values <- rtn[[col]]
-    non_na_values <- values[!is.na(values)]
-    if (length(non_na_values) > 0 && all(non_na_values %in% c("F", "T"))) {
-      ft_cols <- c(ft_cols, col)
-    }
-  }
-
-  # Create col_types object
-  col_types <- readr::cols(.default = readr::col_guess())
-  for (col in ft_cols) {
-    col_types$cols[[col]] <- readr::col_character()
-  }
-
-  # Apply type_convert with custom col_types
-  rtn <- readr::type_convert(rtn, col_types = col_types, na = c("", "NA"))
-
-  rtn
+  process_dataframe(text_df, code_df, .val_code, .col_code)
 }
 
 # Query builder ----------------------------------------------------------------
@@ -255,4 +199,374 @@ px_all <- function(pattern = "*") {
 #' @export
 px_agg <- function(agg_file, ...) {
   structure(c(...), .px_filter = paste0("agg:", agg_file))
+}
+
+# Helper functions for chunking ------------------------------------------------
+
+get_api_limits <- function(x) {
+  base_url <- sub("/api/v1/.*", "", x)
+  config_url <- paste0(base_url, "/api/v1/?config")
+
+  response <- httr::GET(config_url)
+  if (httr::status_code(response) == 200) {
+    config <- httr::content(response, as = "parsed")
+    return(list(
+      max_calls = config$maxCalls %||% 50000,
+      max_cells = config$maxDataCells %||% 1000000
+    ))
+  }
+
+  # Return defaults if config unavailable
+  list(max_calls = 50000, max_cells = 1000000)
+}
+
+estimate_query_size <- function(x, vls) {
+  meta <- statgl_meta(x, "list")
+  total_size <- 1
+
+  for (var in meta$variables) {
+    var_code <- var$code
+    if (var_code %in% names(vls)) {
+      # Count selected values for this variable
+      selected_count <- length(as.character(vls[[var_code]]))
+    } else {
+      # All values will be selected
+      selected_count <- length(var$values)
+    }
+    total_size <- total_size * selected_count
+  }
+
+  total_size
+}
+
+calculate_chunk_size <- function(x, vls, limits) {
+  # Find the time variable (usually largest dimension)
+  meta <- statgl_meta(x, "list")
+  time_var <- find_time_variable(meta$variables)
+
+  if (!is.null(time_var) && !time_var %in% names(vls)) {
+    # Chunk by time periods
+    time_values <- get_variable_values(meta$variables, time_var)
+    max_chunk <- floor(
+      limits$max_cells / (estimate_query_size(x, vls) / length(time_values))
+    )
+    return(max(1, min(max_chunk, 10))) # Reasonable chunk size
+  }
+
+  # Default chunking strategy
+  return(10)
+}
+
+fetch_with_chunking <- function(x, vls, chunk_size, col_code, val_code) {
+  meta <- statgl_meta(x, "list")
+  time_var <- find_time_variable(meta$variables)
+
+  if (is.null(time_var) || time_var %in% names(vls)) {
+    stop("Cannot determine chunking strategy for this query")
+  }
+
+  # Get all time values
+  time_values <- get_variable_values(meta$variables, time_var)
+  time_chunks <- split(
+    time_values,
+    ceiling(seq_along(time_values) / chunk_size)
+  )
+
+  # Fetch each chunk
+  results <- purrr::map_dfr(time_chunks, function(chunk) {
+    chunk_vls <- vls
+    chunk_vls[[time_var]] <- chunk
+
+    # Build and execute query for this chunk
+    body <- build_query(chunk_vls)
+    api_response <- httr::POST(x, body = body)
+
+    if (httr::http_error(api_response)) {
+      stop("Chunk query failed with status ", httr::status_code(api_response))
+    }
+
+    api_content <- httr::content(api_response, as = "text")
+
+    # Process chunk data (similar to existing code)
+    text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+    code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+
+    # Apply value/column code logic
+    process_dataframe(text_df, code_df, val_code, col_code)
+  })
+
+  tibble::as_tibble(results)
+}
+
+find_time_variable <- function(variables) {
+  # Look for common time variable names
+  time_patterns <- c("time", "år", "year", "periode", "period")
+
+  for (var in variables) {
+    if (
+      tolower(var$code) %in%
+        time_patterns ||
+        any(grepl(paste(time_patterns, collapse = "|"), tolower(var$text)))
+    ) {
+      return(var$code)
+    }
+  }
+
+  # Fall back to variable with most values (often time)
+  max_values <- max(sapply(variables, function(v) length(v$values)))
+  time_var <- variables[sapply(variables, function(v) {
+    length(v$values) == max_values
+  })][[1]]
+  return(time_var$code)
+}
+
+fetch_large_dataset <- function(
+  x,
+  meta,
+  chunk_var,
+  chunk_size,
+  col_code,
+  val_code
+) {
+  # Get all values for the chunking variable
+  chunk_values <- NULL
+  for (var in meta$variables) {
+    if (var$code == chunk_var) {
+      chunk_values <- var$values
+      break
+    }
+  }
+
+  if (is.null(chunk_values)) {
+    stop("Could not find chunking variable in metadata")
+  }
+
+  # Create chunks
+  chunks <- split(chunk_values, ceiling(seq_along(chunk_values) / chunk_size))
+
+  # Build base query for all other non-eliminable variables
+  base_vls <- list()
+  for (var in meta$variables) {
+    is_eliminable <- if (is.null(var$elimination)) {
+      FALSE
+    } else if (is.logical(var$elimination)) {
+      var$elimination
+    } else if (is.character(var$elimination)) {
+      tolower(var$elimination) %in% c("true", "yes", "1")
+    } else {
+      FALSE
+    }
+
+    if (!is_eliminable && var$code != chunk_var) {
+      base_vls[[var$code]] <- px_all("*")
+    }
+  }
+
+  # Fetch each chunk
+  results <- list()
+  for (i in seq_along(chunks)) {
+    message("Fetching chunk ", i, " of ", length(chunks))
+
+    chunk_vls <- base_vls
+    chunk_vls[[chunk_var]] <- chunks[[i]]
+
+    # Build and execute query
+    body <- build_query(chunk_vls)
+    api_response <- httr::POST(x, body = body)
+
+    if (httr::http_error(api_response)) {
+      stop("Chunk ", i, " failed with status ", httr::status_code(api_response))
+    }
+
+    api_content <- httr::content(api_response, as = "text")
+    text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+    code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+
+    results[[i]] <- process_dataframe(text_df, code_df, val_code, col_code)
+  }
+
+  # Combine all chunks
+  dplyr::bind_rows(results)
+}
+
+# Add these helper functions to your file:
+
+get_variable_values <- function(variables, var_code) {
+  for (var in variables) {
+    if (var$code == var_code) {
+      return(var$values)
+    }
+  }
+  return(NULL)
+}
+
+process_dataframe <- function(text_df, code_df, val_code, col_code) {
+  # Switch between code and text for values
+  if (is.logical(val_code)) {
+    if (val_code) {
+      rtn <- code_df
+    } else {
+      rtn <- text_df
+    }
+  } else if (is.character(val_code)) {
+    rtn <- text_df
+    for (i in val_code) {
+      idx <- which(names(code_df) == i)
+      rtn[, idx] <- code_df[, idx]
+    }
+  } else {
+    rtn <- text_df
+  }
+
+  # Switch between code and text for column names
+  if (is.logical(col_code)) {
+    if (col_code) {
+      names(rtn) <- names(code_df)
+    } else {
+      names(rtn) <- names(text_df)
+    }
+  } else if (is.character(col_code)) {
+    nms <- names(text_df)
+    for (i in col_code) {
+      idx <- which(names(code_df) == i)
+      nms[idx] <- names(code_df)[idx]
+    }
+    names(rtn) <- nms
+  }
+
+  # Convert to tibble and handle F/T columns
+  rtn <- tibble::as_tibble(rtn)
+
+  # Identify columns where all non-missing values are "F" or "T"
+  ft_cols <- character()
+  for (col in names(rtn)) {
+    values <- rtn[[col]]
+    non_na_values <- values[!is.na(values)]
+    if (length(non_na_values) > 0 && all(non_na_values %in% c("F", "T"))) {
+      ft_cols <- c(ft_cols, col)
+    }
+  }
+
+  # Create col_types object
+  col_types <- readr::cols(.default = readr::col_guess())
+  for (col in ft_cols) {
+    col_types$cols[[col]] <- readr::col_character()
+  }
+
+  # Apply type_convert with custom col_types
+  rtn <- readr::type_convert(rtn, col_types = col_types, na = c("", "NA"))
+
+  rtn
+}
+
+chunk_large_query <- function(x, vls, col_code, val_code) {
+  # Get metadata to find the best variable to chunk by
+  meta <- statgl_meta(x, "list")
+
+  # Find variables with px_all("*") - these are candidates for chunking
+  px_all_vars <- names(vls)[sapply(vls, function(v) {
+    identical(attr(v, ".px_filter"), "all") && identical(as.character(v), "*")
+  })]
+
+  # If we have px_all variables, prefer the one with most values
+  if (length(px_all_vars) > 0) {
+    chunk_var <- NULL
+    max_values <- 0
+
+    for (var_name in px_all_vars) {
+      # Find this variable in metadata
+      var_meta <- meta$variables[sapply(meta$variables, function(v) {
+        v$code == var_name
+      })][[1]]
+      var_count <- length(var_meta$values)
+
+      if (var_count > max_values) {
+        max_values <- var_count
+        chunk_var <- var_name
+      }
+    }
+
+    # Get the actual values from metadata
+    var_meta <- meta$variables[sapply(meta$variables, function(v) {
+      v$code == chunk_var
+    })][[1]]
+    all_values <- var_meta$values
+  } else {
+    # Fall back to original logic for user-specified ranges
+    chunk_var <- NULL
+    max_length <- 0
+
+    for (var_name in names(vls)) {
+      var_values <- vls[[var_name]]
+      if (is.numeric(var_values)) {
+        var_length <- length(var_values)
+      } else {
+        var_length <- length(as.character(var_values))
+      }
+
+      if (var_length > max_length) {
+        max_length <- var_length
+        chunk_var <- var_name
+      }
+    }
+
+    if (is.null(chunk_var)) {
+      stop("Cannot determine chunking strategy - no suitable variable found")
+    }
+
+    chunk_values <- vls[[chunk_var]]
+    if (is.numeric(chunk_values)) {
+      all_values <- chunk_values
+    } else {
+      all_values <- as.character(chunk_values)
+    }
+  }
+
+  # Start with smaller initial chunk size for very large datasets
+  initial_chunk_size <- min(10, length(all_values) %/% 4) # More conservative
+  chunk_size <- max(1, initial_chunk_size)
+
+  while (chunk_size > 0) {
+    chunks <- split(all_values, ceiling(seq_along(all_values) / chunk_size))
+
+    message("Trying chunk size: ", chunk_size, " (", length(chunks), " chunks)")
+
+    # Try first chunk to see if it works
+    test_vls <- vls
+    test_vls[[chunk_var]] <- chunks[[1]]
+
+    test_body <- build_query(test_vls)
+    test_response <- httr::POST(x, body = test_body)
+
+    if (!httr::http_error(test_response)) {
+      # Success! Process all chunks
+      results <- list()
+      for (i in seq_along(chunks)) {
+        message("Fetching chunk ", i, " of ", length(chunks))
+
+        chunk_vls <- vls
+        chunk_vls[[chunk_var]] <- chunks[[i]]
+
+        body <- build_query(chunk_vls)
+        api_response <- httr::POST(x, body = body)
+
+        if (httr::http_error(api_response)) {
+          stop("Chunk ", i, " failed")
+        }
+
+        api_content <- httr::content(api_response, as = "text")
+        text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
+        code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
+
+        results[[i]] <- process_dataframe(text_df, code_df, val_code, col_code)
+      }
+
+      return(dplyr::bind_rows(results))
+    }
+
+    # If still too large, try smaller chunks
+    chunk_size <- max(1, chunk_size %/% 2)
+  }
+
+  stop("Unable to chunk query small enough to avoid API limits")
 }
