@@ -41,8 +41,8 @@ statgl_table <- function(df, year_col, replace_0s = FALSE, ...) {
     ...
   )
 
-  as.character(kableExtra::kable_styling(
+  kableExtra::kable_styling(
     kableExtra::kable(df, align = aligns),
     bootstrap_options = c("striped", "hover", "condensed", "responsive")
-  ))
+  )
 }
