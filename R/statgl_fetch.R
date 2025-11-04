@@ -226,17 +226,94 @@ estimate_query_size <- function(x, vls) {
 
   for (var in meta$variables) {
     var_code <- var$code
+
     if (var_code %in% names(vls)) {
-      # Count selected values for this variable
-      selected_count <- length(as.character(vls[[var_code]]))
+      # Get the actual cardinality based on px_ function type
+      var_selection <- vls[[var_code]]
+      selected_count <- get_selection_cardinality(var_selection, var)
     } else {
-      # All values will be selected
-      selected_count <- length(var$values)
+      # Variable not specified - use default behavior
+      is_eliminable <- if (is.null(var$elimination)) {
+        FALSE
+      } else if (is.logical(var$elimination)) {
+        var$elimination
+      } else if (is.character(var$elimination)) {
+        tolower(var$elimination) %in% c("true", "yes", "1")
+      } else {
+        FALSE
+      }
+
+      # If eliminable, API returns subset; if not, returns all
+      if (is_eliminable) {
+        # Estimate default elimination subset (typically small)
+        selected_count <- min(length(var$values), 10) # Conservative estimate
+      } else {
+        selected_count <- length(var$values)
+      }
     }
+
     total_size <- total_size * selected_count
   }
 
   total_size
+}
+
+get_selection_cardinality <- function(selection, var_metadata) {
+  # Handle different px_ function types
+  px_filter <- attr(selection, ".px_filter")
+
+  if (is.null(px_filter)) {
+    # Regular vector selection (numeric range or character vector)
+    if (is.numeric(selection)) {
+      return(length(selection))
+    } else {
+      return(length(as.character(selection)))
+    }
+  }
+
+  switch(
+    px_filter,
+    "all" = {
+      # px_all() - need to count matching values
+      pattern <- as.character(selection)[1]
+      if (pattern == "*") {
+        # All values
+        return(length(var_metadata$values))
+      } else {
+        # Wildcard pattern - count matches
+        matching_values <- grep(
+          glob2rx(pattern),
+          var_metadata$values,
+          value = TRUE
+        )
+        return(length(matching_values))
+      }
+    },
+    "Top" = {
+      # px_top() - returns specified number
+      top_n <- as.numeric(selection)[1]
+      return(min(top_n, length(var_metadata$values)))
+    },
+    {
+      # px_agg() or other filters
+      if (startsWith(px_filter, "agg:")) {
+        # Aggregation - return number of specified aggregation values
+        return(length(as.character(selection)))
+      } else {
+        # Unknown filter type - conservative estimate
+        return(length(as.character(selection)))
+      }
+    }
+  )
+}
+
+# Helper function to convert glob patterns to regex
+glob2rx <- function(pattern) {
+  # Simple glob to regex conversion
+  pattern <- gsub("\\.", "\\\\.", pattern)
+  pattern <- gsub("\\*", ".*", pattern)
+  pattern <- gsub("\\?", ".", pattern)
+  paste0("^", pattern, "$")
 }
 
 calculate_chunk_size <- function(x, vls, limits) {
