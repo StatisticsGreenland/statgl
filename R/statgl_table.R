@@ -34,5 +34,7 @@ statgl_table <- function(
       bootstrap_options = c("striped", "hover", "condensed", "responsive")
     )
 
-  paste0("`", k, "`{=html}")
-}
+  if (.as_html) {
+    return(as.character(k))
+  }
+  k
