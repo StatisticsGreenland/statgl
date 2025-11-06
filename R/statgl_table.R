@@ -38,3 +38,4 @@ statgl_table <- function(
     return(as.character(k))
   }
   k
+}
