@@ -37,7 +37,7 @@ statgl_plot <- function(
   ylab = "",
   tooltip = NULL,
   locale = "en",
-  height = 400
+  height = 300
 ) {
   # Capture expressions
   x <- rlang::enexpr(x)
