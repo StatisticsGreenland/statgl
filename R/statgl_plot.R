@@ -22,13 +22,23 @@
 #' @examples
 #' sstatgl_plot(statgl_fetch("BEXSTA"), time)
 #' statgl_plot(statgl_fetch("BEXSTA", time = px_top(), gender = c("M", "K")), x = gender, type = "bar")
-statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL,
-                        title = NULL, subtitle = NULL, caption = NULL,
-                        show_last_value = TRUE,
-                        xlab = "",
-                        ylab = "",
-                        tooltip = NULL,
-                        locale = "en") {
+statgl_plot <- function(
+  df,
+  x,
+  y = value,
+  type = NULL,
+  name = NULL,
+  group = NULL,
+  title = NULL,
+  subtitle = NULL,
+  caption = NULL,
+  show_last_value = TRUE,
+  xlab = "",
+  ylab = "",
+  tooltip = NULL,
+  locale = "en",
+  height = 400
+) {
   # Capture expressions
   x <- rlang::enexpr(x)
   y <- rlang::enexpr(y)
@@ -44,11 +54,18 @@ statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL
   if (missing(type) || is.null(type)) {
     x_vals <- df[[rlang::as_name(x)]]
 
-    if (inherits(x_vals, c("Date", "POSIXct")) ||
-        is.numeric(x_vals) && all(x_vals %% 1 == 0) && length(unique(x_vals)) > 10) {
+    if (
+      inherits(x_vals, c("Date", "POSIXct")) ||
+        is.numeric(x_vals) &&
+          all(x_vals %% 1 == 0) &&
+          length(unique(x_vals)) > 10
+    ) {
       type <- "line"
-    } else if (is.character(x_vals) || is.factor(x_vals) ||
-               (is.numeric(x_vals) && length(unique(x_vals)) <= 12)) {
+    } else if (
+      is.character(x_vals) ||
+        is.factor(x_vals) ||
+        (is.numeric(x_vals) && length(unique(x_vals)) <= 12)
+    ) {
       type <- "column"
     } else {
       type <- "scatter"
@@ -94,42 +111,57 @@ statgl_plot <- function(df, x, y = value, type = NULL, name = NULL, group = NULL
 
   # Optional tooltip formatter (JS string)
   if (!is.null(tooltip)) {
-    chart <- highcharter::hc_tooltip(chart, formatter = highcharter::JS(tooltip))
+    chart <- highcharter::hc_tooltip(
+      chart,
+      formatter = highcharter::JS(tooltip)
+    )
   }
 
   if (show_last_value) {
     decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
-    big_mark     <- if (locale %in% c("da", "kl")) "." else ","
+    big_mark <- if (locale %in% c("da", "kl")) "." else ","
     if (type %in% c("line", "spline")) {
-      chart <- highcharter::hc_plotOptions(chart, series = list(
-        dataLabels = list(
-          enabled = TRUE,
-          formatter = highcharter::JS(sprintf(
-            'function() {
+      chart <- highcharter::hc_plotOptions(
+        chart,
+        series = list(
+          dataLabels = list(
+            enabled = TRUE,
+            formatter = highcharter::JS(sprintf(
+              'function() {
            return (this.point.index === this.series.data.length - 1)
              ? Highcharts.numberFormat(this.y, 0, "%s", "%s")
              : null;
          }',
-            decimal_mark, big_mark
-          ))
+              decimal_mark,
+              big_mark
+            ))
+          )
         )
-      ))
+      )
     } else if (type %in% c("bar", "column")) {
-    decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
-    big_mark     <- if (locale %in% c("da", "kl")) "." else ","
-    chart <-
-      highcharter::hc_plotOptions(chart, series = list(
-        dataLabels = list(
-          enabled = TRUE,
-          formatter = highcharter::JS(sprintf('
+      decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
+      big_mark <- if (locale %in% c("da", "kl")) "." else ","
+      chart <-
+        highcharter::hc_plotOptions(
+          chart,
+          series = list(
+            dataLabels = list(
+              enabled = TRUE,
+              formatter = highcharter::JS(sprintf(
+                '
   function() {
     return Highcharts.numberFormat(this.y, 0, "%s", "%s");
-  }', decimal_mark, big_mark))
+  }',
+                decimal_mark,
+                big_mark
+              ))
+            )
+          )
         )
-      ))
+    }
   }
-  }
+
+  chart <- highcharter::hc_chart(chart, height = height)
 
   chart
-
 }
