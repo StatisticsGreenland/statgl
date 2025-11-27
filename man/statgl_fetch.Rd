@@ -10,6 +10,7 @@ statgl_fetch(
   .col_code = FALSE,
   .val_code = FALSE,
   .eliminate_rest = TRUE,
+  .chunk_size = NULL,
   url = NULL
 )
 }
