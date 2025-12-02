@@ -110,13 +110,42 @@ statgl_plot <- function(
     chart <- highcharter::hc_caption(chart, text = caption, align = "right")
   }
 
-  # --- axis labels -----------------------------------------------
+  # Axis labels ---------------------------------------------------
+
+  # X axis ----------------------------------------------------------
+  x_axis_opts <- list()
+
+  # Only add right padding if we will draw end labels
+  if (isTRUE(show_last_value) && type %in% c("line", "spline", "area")) {
+    x_axis_opts$maxPadding <- 0.12 # room for right-aligned labels
+  }
+
+  # Show xlab only if user provided a non-empty string
   if (!is.null(xlab) && nzchar(xlab)) {
-    chart <- highcharter::hc_xAxis(chart, title = list(text = xlab))
+    x_axis_opts$title <- list(text = xlab)
+  } else {
+    x_axis_opts$title <- list(text = NULL)
   }
-  if (!is.null(ylab) && nzchar(ylab)) {
-    chart <- highcharter::hc_yAxis(chart, title = list(text = ylab))
+
+  chart <- do.call(highcharter::hc_xAxis, c(list(chart), x_axis_opts))
+
+  # Y axis ---------------------------------------------------------
+  y_axis_opts <- list()
+
+  if (is.null(ylab) || !nzchar(ylab)) {
+    # explicitly hide y-axis title (overrides default "value")
+    y_axis_opts$title <- list(
+      text = NULL,
+      enabled = FALSE
+    )
+  } else {
+    y_axis_opts$title <- list(
+      text = ylab,
+      enabled = TRUE
+    )
   }
+
+  chart <- do.call(highcharter::hc_yAxis, c(list(chart), y_axis_opts))
 
   # --- tooltip ---------------------------------------------------
   if (!is.null(tooltip)) {
@@ -186,12 +215,17 @@ statgl_plot <- function(
     if (type %in% c("line", "spline", "area")) {
       series_opts$dataLabels <- list(
         enabled = TRUE,
+        align = "left", # text grows to the right
+        x = 6, # horizontal offset (tweakable)
+        verticalAlign = "middle",
+        crop = FALSE, # prevents clipping
+        overflow = "allow", # allow label outside nearest point
         formatter = highcharter::JS(sprintf(
           'function() {
-             return (this.point.index === this.series.data.length - 1)
-               ? Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s"
-               : null;
-           }',
+         // Only label last point
+         if (this.point.index !== this.series.data.length - 1) return null;
+         return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+       }',
           digits,
           decimal_mark,
           big_mark,
