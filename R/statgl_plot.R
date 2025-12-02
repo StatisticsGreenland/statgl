@@ -219,6 +219,11 @@ statgl_plot <- function(
     series_opts$stacking <- stacking
   }
 
+  # --- default: no markers on line/spline/area ---------------------
+  if (type %in% c("line", "spline", "area")) {
+    series_opts$marker <- list(enabled = FALSE)
+  }
+
   if (length(series_opts) > 0) {
     chart <- highcharter::hc_plotOptions(chart, series = series_opts)
   }
