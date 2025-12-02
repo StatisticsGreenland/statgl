@@ -1,3 +1,79 @@
+#' Create a highcharter plot with Statgl defaults
+#'
+#' `statgl_plot()` is a wrapper around [highcharter::hchart()] that provides
+#' Statgl-friendly defaults for chart types, formatting, labels, colors, and
+#' layout. It handles number formatting, suffixes, value labels, axis-title
+#' suppression, grouped tooltips, stacking, colour palettes, and placing
+#' last-value labels slightly to the right of the final point in line/area
+#' charts.
+#'
+#' @export
+#'
+#' @param df A data frame.
+#' @param x,y Bare column names for x and y aesthetics. `y` defaults to `value`.
+#' @param type Optional string specifying the chart type. If `NULL`, the type is
+#'   inferred from the structure of `x`:
+#'   * `"line"` if `x` is `Date`/`POSIXct` or an integer-like numeric with many
+#'     distinct values
+#'   * `"column"` if `x` is a factor/character or numeric with few distinct
+#'     values
+#'   * `"scatter"` otherwise.
+#' @param name Optional series name passed to [highcharter::hchart()].
+#' @param group Optional bare column name used to split data into series
+#'   (`highcharter::hcaes(group = ...)`).
+#' @param title,subtitle,caption Optional text annotations added via
+#'   [highcharter::hc_title()], [highcharter::hc_subtitle()] and
+#'   [highcharter::hc_caption()]. Titles and subtitles are left-aligned;
+#'   captions are right-aligned.
+#' @param show_last_value Logical; if `TRUE` (default), adds data labels for the
+#'   final point of each `"line"`, `"spline"` and `"area"` series, or for all
+#'   bars in `"bar"` / `"column"` charts. For line/area/spline charts, the label
+#'   is placed slightly to the right of the final point.
+#' @param xlab,ylab Axis labels. If `NULL` or `""`, no axis title is shown and
+#'   any automatic titles inferred by [highcharter::hchart()] are disabled.
+#' @param tooltip Optional JavaScript string passed to
+#'   [highcharter::hc_tooltip()] as a custom `formatter`. If `NULL`, a default
+#'   tooltip is used that respects `group`, `digits`, `big.mark`,
+#'   `decimal.mark` and `suffix`.
+#' @param suffix Character suffix appended to formatted values in data labels
+#'   and the default tooltip, e.g. `" %"` or `" personer"`. Defaults to `""`.
+#' @param digits Integer number of decimal places used in the default tooltip
+#'   and data labels. Defaults to `0`.
+#' @param big.mark Character used as thousands separator for number formatting.
+#'   Defaults to `"."`.
+#' @param decimal.mark Character used as decimal separator for number
+#'   formatting. Defaults to `","`.
+#' @param locale Optional locale code (`"da"`, `"kl"`, `"en"`, etc.). If
+#'   provided and `big.mark` and `decimal.mark` are not explicitly overridden,
+#'   they are derived from `locale` (`"da"`/`"kl"` → decimal `","`, big mark
+#'   `"."`; other values → decimal `"."`, big mark `","`).
+#' @param stacking Optional stacking mode for `"area"`, `"column"` and `"bar"`
+#'   charts. One of `"normal"` or `"percent"`, or `NULL` (no stacking).
+#' @param palette Optional palette specification for the series colours. Either:
+#'   * a single character name of an element in `statgl_palettes` (e.g.
+#'     `"main"`, `"winter"`, `"autumn"`), or
+#'   * a character vector of colour hex codes to pass directly to
+#'     [highcharter::hc_colors()].
+#'
+#'   If the named palette is not found, a warning is issued and the default
+#'   Highcharts colours are used.
+#' @param height Numeric chart height in pixels passed to
+#'   [highcharter::hc_chart()]. Defaults to `300`.
+#'
+#' @return A [highcharter::highchart] object.
+#'
+#' @examples
+#' \dontrun{
+#' # Grouped time series with suffix and Statgl palette
+#' statgl_fetch("BEXSTNUK", citydistrict = "*") %>%
+#'   statgl_plot(
+#'     time,
+#'     group   = citydistrict,
+#'     suffix  = " personer",
+#'     locale  = "da",
+#'     palette = "spring"
+#'   )
+#' }
 statgl_plot <- function(
   df,
   x,
@@ -21,6 +97,7 @@ statgl_plot <- function(
   palette = NULL,
   height = 300
 ) {
+  # --- number formatting setup -----------------------------------
   big_mark_missing <- missing(big.mark)
   decimal_mark_missing <- missing(decimal.mark)
 
@@ -110,17 +187,15 @@ statgl_plot <- function(
     chart <- highcharter::hc_caption(chart, text = caption, align = "right")
   }
 
-  # Axis labels ---------------------------------------------------
-
-  # X axis ----------------------------------------------------------
+  # --- axes ------------------------------------------------------
+  # X axis
   x_axis_opts <- list()
 
-  # Only add right padding if we will draw end labels
+  # only add right padding if we will draw end labels on line/spline/area
   if (isTRUE(show_last_value) && type %in% c("line", "spline", "area")) {
-    x_axis_opts$maxPadding <- 0.12 # room for right-aligned labels
+    x_axis_opts$maxPadding <- 0.12
   }
 
-  # Show xlab only if user provided a non-empty string
   if (!is.null(xlab) && nzchar(xlab)) {
     x_axis_opts$title <- list(text = xlab)
   } else {
@@ -129,11 +204,10 @@ statgl_plot <- function(
 
   chart <- do.call(highcharter::hc_xAxis, c(list(chart), x_axis_opts))
 
-  # Y axis ---------------------------------------------------------
+  # Y axis
   y_axis_opts <- list()
 
   if (is.null(ylab) || !nzchar(ylab)) {
-    # explicitly hide y-axis title (overrides default "value")
     y_axis_opts$title <- list(
       text = NULL,
       enabled = FALSE
@@ -216,16 +290,15 @@ statgl_plot <- function(
       series_opts$dataLabels <- list(
         enabled = TRUE,
         align = "left", # text grows to the right
-        x = 6, # horizontal offset (tweakable)
+        x = 6, # horizontal offset
         verticalAlign = "middle",
-        crop = FALSE, # prevents clipping
-        overflow = "allow", # allow label outside nearest point
+        crop = FALSE, # prevent clipping
+        overflow = "allow",
         formatter = highcharter::JS(sprintf(
           'function() {
-         // Only label last point
-         if (this.point.index !== this.series.data.length - 1) return null;
-         return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
-       }',
+             if (this.point.index !== this.series.data.length - 1) return null;
+             return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           }',
           digits,
           decimal_mark,
           big_mark,
@@ -253,7 +326,7 @@ statgl_plot <- function(
     series_opts$stacking <- stacking
   }
 
-  # --- default: no markers on line/spline/area ---------------------
+  # default: no markers on line/spline/area
   if (type %in% c("line", "spline", "area")) {
     series_opts$marker <- list(enabled = FALSE)
   }

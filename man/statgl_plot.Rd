@@ -2,7 +2,7 @@
 % Please edit documentation in R/statgl_plot.R
 \name{statgl_plot}
 \alias{statgl_plot}
-\title{Create a highcharter plot with smart defaults}
+\title{Create a highcharter plot with Statgl defaults}
 \usage{
 statgl_plot(
   df,
@@ -15,47 +15,64 @@ statgl_plot(
   subtitle = NULL,
   caption = NULL,
   show_last_value = TRUE,
-  xlab = "",
-  ylab = "",
+  xlab = NULL,
+  ylab = NULL,
   tooltip = NULL,
-  locale = "en",
+  suffix = "",
+  digits = 0,
+  big.mark = ".",
+  decimal.mark = ",",
+  locale = NULL,
   stacking = NULL,
+  palette = NULL,
   height = 300
 )
 }
 \arguments{
 \item{df}{A data frame.}
 
-\item{x, }{y Bare column names for x and y aesthetics. \code{y} defaults to \code{value}.}
+\item{x, y}{Bare column names for x and y aesthetics. \code{y} defaults to \code{value}.}
 
-\item{type}{A string specifying the chart type (e.g., \code{"line"}, \code{"column"}, \code{"bar"}, \code{"scatter"}, \code{"area"}).}
+\item{type}{Optional string specifying the chart type. If \code{NULL}, the type is
+inferred from the structure of \code{x}.}
 
-\item{name}{An optional name for the series.}
+\item{name}{Optional series name.}
 
-\item{group}{A bare column name to split data into series (for grouped plots).}
+\item{group}{Optional bare column name used to split data into series.}
 
-\item{title, }{subtitle, caption Optional text elements to add to the chart.}
+\item{title, subtitle, caption}{Optional text annotations.}
 
-\item{show_last_value}{Logical; if \code{TRUE}, adds data labels to the last value of each line, or all bars in bar/column charts.}
+\item{show_last_value}{Logical; if \code{TRUE}, adds data labels for the final
+point of each line/spline/area series, or for all bars in column/bar charts.}
 
-\item{xlab, }{ylab Axis labels.}
+\item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, axis titles are \strong{not shown}.}
 
 \item{tooltip}{Optional JavaScript string for a custom tooltip formatter.}
 
-\item{locale}{Locale code used to control number formatting (default is \code{"en"}; use \code{"da"} or \code{"kl"} for Danish/Greenlandic-style formatting).}
+\item{suffix}{Character suffix appended to formatted values.}
 
-\item{stacking}{Optional stacking mode for area/column/bar charts (\code{"normal"} or \code{"percent"}).}
+\item{digits}{Integer number of decimal places (default: \code{0}).}
+
+\item{big.mark, decimal.mark}{Characters for number formatting.}
+
+\item{locale}{Locale code; if provided and marks are not overridden, it
+determines \code{big.mark} / \code{decimal.mark}.}
+
+\item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"}, \code{"bar"}.}
+
+\item{palette}{Optional palette name (from \code{statgl_palettes}) or a character
+vector of colours.}
 
 \item{height}{Chart height in pixels.}
 }
 \value{
-A \code{highchart} object.
+A \link[highcharter:highchart]{highcharter::highchart} object.
 }
 \description{
-A wrapper around \code{highcharter::hchart()} that makes it easy to create line, bar, and column plots with automatic titles, axis labels, tooltips, and localized number formatting.
-If \code{show_last_value = TRUE}, it shows value labels on:
-\itemize{
-\item only the last point in each line (\code{type = "line"}, \code{"spline"}, or \code{"area"})
-\item all bars for \code{type = "bar"} or \code{"column"}
-}
+\code{statgl_plot()} is a wrapper around \code{\link[highcharter:hchart]{highcharter::hchart()}} that provides
+Statgl-friendly defaults for chart types, formatting, labels, colors, and
+layout. It handles number formatting, suffixes, value labels, axis-title
+suppression, grouped tooltips, stacking, colour palettes, and placing
+last-value labels slightly to the right of the final point in line/area
+charts.
 }
