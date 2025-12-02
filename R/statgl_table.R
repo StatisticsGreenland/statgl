@@ -1,57 +1,21 @@
-statgl_table <- function(
-  df,
-  year_col,
-  replace_0s = FALSE,
-  ...,
-  digits = 3,
-  .as_html = FALSE
-) {
-  aligns <- paste0(c("l", rep("r", ncol(df) - 1L)), collapse = "")
-  if (!missing(year_col)) {
-    df <- dplyr::mutate(df, dplyr::across({{ year_col }}, as.character))
-  }
-  if (replace_0s) {
-    df[] <- lapply(df, function(x) {
-      x <- trimws(as.character(x))
-      x[x == "0"] <- "[-]{}"
-      x
-    })
-  }
-  df <- dplyr::mutate_if(
-    df,
-    is.numeric,
-    format,
-    big.mark = ".",
-    decimal.mark = ",",
-    digits = digits,
-    justify = "right",
-    ...
-  )
-
-  k <- df |>
-    kableExtra::kable(format = "html", align = aligns, escape = FALSE) |>
-    kableExtra::kable_styling(
-      bootstrap_options = c("striped", "hover", "condensed", "responsive")
-    )
-
-  if (.as_html) {
-    return(as.character(k))
-  }
-  k
-}
-
 #' Create a formatted HTML table for Statgl
 #'
-#' `statgl_table2()` is a helper for turning a data frame into a
+#' `statgl_table()` is a helper for turning a data frame into a
 #' Bootstrap-styled HTML table via **kableExtra**, with optional
 #' responsive hiding of “secondary” columns on small screens.
 #'
+#' By default it uses Danish/Greenlandic-style number formatting
+#' (thousands separator `"."`, decimal separator `","`), but you can
+#' override this via `.big.mark` and `.decimal.mark`.
+#'
 #' @param df A data frame.
 #' @param ... Additional arguments passed on to [base::format()] when
-#'   formatting numeric columns (for example `big.mark`, `scientific`,
-#'   etc.). Defaults are suitable for Danish/Greenlandic number
-#'   formatting.
+#'   formatting numeric columns (for example `scientific`, etc.).
 #' @param .digits Number of digits used when formatting numeric columns.
+#' @param .big.mark Thousands separator used for numeric formatting.
+#'   Defaults to `"."`.
+#' @param .decimal.mark Decimal separator used for numeric formatting.
+#'   Defaults to `","`.
 #' @param .secondary Tidyselect specification of columns that should be
 #'   considered “secondary”. These columns will be hidden on viewports
 #'   narrower than 768px (via CSS) when `.as_html = TRUE`.
@@ -75,10 +39,12 @@ statgl_table <- function(
 #' @importFrom rlang enquo
 #' @importFrom kableExtra kable kable_styling
 #' @export
-statgl_table2 <- function(
+statgl_table <- function(
   df,
   ...,
   .digits = 3,
+  .big.mark = ".",
+  .decimal.mark = ",",
   .secondary = NULL, # tidyselect
   .year_col,
   .replace_0s = FALSE,
@@ -109,15 +75,15 @@ statgl_table2 <- function(
     })
   }
 
-  # 4) Format numeric columns (locale style: "." thousands, "," decimal)
+  # 4) Format numeric columns (Statgl style by default)
   df <- dplyr::mutate(
     df,
     dplyr::across(
       dplyr::where(is.numeric),
       ~ format(
         .x,
-        big.mark = ".",
-        decimal.mark = ",",
+        big.mark = .big.mark,
+        decimal.mark = .decimal.mark,
         digits = .digits,
         justify = "right",
         ...

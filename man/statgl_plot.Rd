@@ -24,7 +24,7 @@ statgl_plot(
   decimal.mark = ",",
   locale = NULL,
   stacking = NULL,
-  palette = NULL,
+  palette = "main",
   height = 300
 )
 }
@@ -34,36 +34,71 @@ statgl_plot(
 \item{x, y}{Bare column names for x and y aesthetics. \code{y} defaults to \code{value}.}
 
 \item{type}{Optional string specifying the chart type. If \code{NULL}, the type is
-inferred from the structure of \code{x}.}
+inferred from the structure of \code{x}:
+\itemize{
+\item \code{"line"} if \code{x} is \code{Date}/\code{POSIXct} or an integer-like numeric with many
+distinct values
+\item \code{"column"} if \code{x} is a factor/character or numeric with few distinct
+values
+\item \code{"scatter"} otherwise.
+}}
 
-\item{name}{Optional series name.}
+\item{name}{Optional series name passed to \code{\link[highcharter:hchart]{highcharter::hchart()}}.}
 
-\item{group}{Optional bare column name used to split data into series.}
+\item{group}{Optional bare column name used to split data into series
+(\code{highcharter::hcaes(group = ...)}).}
 
-\item{title, subtitle, caption}{Optional text annotations.}
+\item{title, subtitle, caption}{Optional text annotations added via
+\code{\link[highcharter:hc_title]{highcharter::hc_title()}}, \code{\link[highcharter:hc_subtitle]{highcharter::hc_subtitle()}} and
+\code{\link[highcharter:hc_caption]{highcharter::hc_caption()}}. Titles and subtitles are left-aligned;
+captions are right-aligned.}
 
-\item{show_last_value}{Logical; if \code{TRUE}, adds data labels for the final
-point of each line/spline/area series, or for all bars in column/bar charts.}
+\item{show_last_value}{Logical; if \code{TRUE} (default), adds data labels for the
+final point of each \code{"line"}, \code{"spline"} and \code{"area"} series, or for all
+bars in \code{"bar"} / \code{"column"} charts. For line/area/spline charts, the label
+is placed slightly to the right of the final point.}
 
-\item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, axis titles are \strong{not shown}.}
+\item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, no axis title is shown and
+any automatic titles inferred by \code{\link[highcharter:hchart]{highcharter::hchart()}} are disabled.}
 
-\item{tooltip}{Optional JavaScript string for a custom tooltip formatter.}
+\item{tooltip}{Optional JavaScript string passed to
+\code{\link[highcharter:hc_tooltip]{highcharter::hc_tooltip()}} as a custom \code{formatter}. If \code{NULL}, a default
+tooltip is used that respects \code{group}, \code{digits}, \code{big.mark},
+\code{decimal.mark} and \code{suffix}.}
 
-\item{suffix}{Character suffix appended to formatted values.}
+\item{suffix}{Character suffix appended to formatted values in data labels
+and the default tooltip, e.g. \code{" \%"} or \code{" personer"}. Defaults to \code{""}.}
 
-\item{digits}{Integer number of decimal places (default: \code{0}).}
+\item{digits}{Integer number of decimal places used in the default tooltip
+and data labels. Defaults to \code{0}.}
 
-\item{big.mark, decimal.mark}{Characters for number formatting.}
+\item{big.mark}{Character used as thousands separator for number formatting.
+Defaults to \code{"."}.}
 
-\item{locale}{Locale code; if provided and marks are not overridden, it
-determines \code{big.mark} / \code{decimal.mark}.}
+\item{decimal.mark}{Character used as decimal separator for number
+formatting. Defaults to \code{","}.}
 
-\item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"}, \code{"bar"}.}
+\item{locale}{Optional locale code (\code{"da"}, \code{"kl"}, \code{"en"}, etc.). If
+provided and \code{big.mark} and \code{decimal.mark} are not explicitly overridden,
+they are derived from \code{locale} (\code{"da"}/\code{"kl"} → decimal \code{","}, big mark
+\code{"."}; other values → decimal \code{"."}, big mark \code{","}).}
 
-\item{palette}{Optional palette name (from \code{statgl_palettes}) or a character
-vector of colours.}
+\item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"} and \code{"bar"}
+charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).}
 
-\item{height}{Chart height in pixels.}
+\item{palette}{Optional palette specification for the series colours. Either:
+\itemize{
+\item a single character name of an element in \code{statgl_palettes} (e.g.
+\code{"main"}, \code{"winter"}, \code{"autumn"}), or
+\item a character vector of colour hex codes to pass directly to
+\code{\link[highcharter:hc_colors]{highcharter::hc_colors()}}.
+}
+
+If the named palette is not found, a warning is issued and the default
+Highcharts colours are used.}
+
+\item{height}{Numeric chart height in pixels passed to
+\code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
 }
 \value{
 A \link[highcharter:highchart]{highcharter::highchart} object.
@@ -75,4 +110,17 @@ layout. It handles number formatting, suffixes, value labels, axis-title
 suppression, grouped tooltips, stacking, colour palettes, and placing
 last-value labels slightly to the right of the final point in line/area
 charts.
+}
+\examples{
+\dontrun{
+# Grouped time series with suffix and Statgl palette
+statgl_fetch("BEXSTNUK", citydistrict = "*") \%>\%
+  statgl_plot(
+    time,
+    group   = citydistrict,
+    suffix  = " personer",
+    locale  = "da",
+    palette = "spring"
+  )
+}
 }
