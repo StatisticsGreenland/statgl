@@ -1,25 +1,3 @@
-#' Create a highcharter plot with smart defaults
-#'
-#' A wrapper around `highcharter::hchart()` that makes it easy to create line, bar, and column plots with automatic titles, axis labels, tooltips, and localized number formatting.
-#' If `show_last_value = TRUE`, it shows value labels on:
-#' - only the last point in each line (`type = "line"`, `"spline"`, or `"area"`)
-#' - all bars for `type = "bar"` or `"column"`
-#'
-#' @param df A data frame.
-#' @param x, y Bare column names for x and y aesthetics. `y` defaults to `value`.
-#' @param type A string specifying the chart type (e.g., `"line"`, `"column"`, `"bar"`, `"scatter"`, `"area"`).
-#' @param name An optional name for the series.
-#' @param group A bare column name to split data into series (for grouped plots).
-#' @param title, subtitle, caption Optional text elements to add to the chart.
-#' @param show_last_value Logical; if `TRUE`, adds data labels to the last value of each line, or all bars in bar/column charts.
-#' @param xlab, ylab Axis labels.
-#' @param tooltip Optional JavaScript string for a custom tooltip formatter.
-#' @param locale Locale code used to control number formatting (default is `"en"`; use `"da"` or `"kl"` for Danish/Greenlandic-style formatting).
-#' @param stacking Optional stacking mode for area/column/bar charts (`"normal"` or `"percent"`).
-#' @param height Chart height in pixels.
-#'
-#' @return A `highchart` object.
-#' @export
 statgl_plot <- function(
   df,
   x,
@@ -31,32 +9,69 @@ statgl_plot <- function(
   subtitle = NULL,
   caption = NULL,
   show_last_value = TRUE,
-  xlab = "",
-  ylab = "",
+  xlab = NULL,
+  ylab = NULL,
   tooltip = NULL,
-  locale = "en",
-  stacking = NULL, # <---- NEW
+  suffix = "",
+  digits = 0,
+  big.mark = ".",
+  decimal.mark = ",",
+  locale = NULL,
+  stacking = NULL,
+  palette = NULL,
   height = 300
 ) {
-  # Capture expressions
-  x <- rlang::enexpr(x)
-  y <- rlang::enexpr(y)
-  group <- rlang::enexpr(group)
+  big_mark_missing <- missing(big.mark)
+  decimal_mark_missing <- missing(decimal.mark)
 
-  # Build hcaes() mapping only including non-NULL aesthetics
-  mapping <- rlang::expr(highcharter::hcaes(!!x, !!y))
-  if (!is.null(group)) {
-    mapping <- rlang::call_modify(mapping, group = group)
+  if (!is.null(locale) && big_mark_missing && decimal_mark_missing) {
+    if (locale %in% c("da", "kl")) {
+      decimal.mark <- ","
+      big.mark <- "."
+    } else {
+      decimal.mark <- "."
+      big.mark <- ","
+    }
   }
 
-  # Infer type if not provided
-  if (missing(type) || is.null(type)) {
-    x_vals <- df[[rlang::as_name(x)]]
+  js_escape <- function(x) {
+    x <- gsub("\\\\", "\\\\\\\\", x, fixed = TRUE)
+    x <- gsub("\"", "\\\\\"", x, fixed = TRUE)
+    x
+  }
+
+  decimal_mark <- decimal.mark
+  big_mark <- big.mark
+  suffix_js <- js_escape(suffix)
+
+  # --- mapping ---------------------------------------------------
+  x_expr <- rlang::enexpr(x)
+  y_expr <- rlang::enexpr(y)
+  group_expr <- rlang::enexpr(group)
+
+  has_group <- !rlang::is_missing(group_expr) &&
+    !identical(group_expr, rlang::expr(NULL))
+
+  mapping_expr <- if (has_group) {
+    rlang::expr(
+      highcharter::hcaes(!!x_expr, !!y_expr, group = !!group_expr)
+    )
+  } else {
+    rlang::expr(
+      highcharter::hcaes(!!x_expr, !!y_expr)
+    )
+  }
+
+  mapping <- rlang::eval_tidy(mapping_expr)
+
+  # --- type inference --------------------------------------------
+  if (is.null(type)) {
+    x_vals <- df[[rlang::as_name(x_expr)]]
 
     if (
       inherits(x_vals, c("Date", "POSIXct")) ||
         (is.numeric(x_vals) &&
-          all(x_vals %% 1 == 0) &&
+          all(x_vals %% 1 == 0, na.rm = TRUE) &&
           length(unique(x_vals)) > 10)
     ) {
       type <- "line"
@@ -71,105 +86,172 @@ statgl_plot <- function(
     }
   }
 
-  # Build hchart() args
+  # --- build hchart() args ---------------------------------------
   args <- rlang::dots_list(
     object = df,
     type = type,
-    mapping = eval(mapping),
+    mapping = mapping,
     .named = TRUE
   )
   if (!is.null(name)) {
     args$name <- name
   }
 
-  # Create chart
   chart <- rlang::exec(highcharter::hchart, !!!args)
 
-  # Add title if provided
+  # --- titles / captions -----------------------------------------
   if (!is.null(title)) {
     chart <- highcharter::hc_title(chart, text = title, align = "left")
   }
-
-  # Add subtitle if provided
   if (!is.null(subtitle)) {
     chart <- highcharter::hc_subtitle(chart, text = subtitle, align = "left")
   }
-
-  # Add caption if provided
   if (!is.null(caption)) {
     chart <- highcharter::hc_caption(chart, text = caption, align = "right")
   }
 
-  # Add axis labels if provided
-  if (!is.null(xlab)) {
+  # --- axis labels -----------------------------------------------
+  if (!is.null(xlab) && nzchar(xlab)) {
     chart <- highcharter::hc_xAxis(chart, title = list(text = xlab))
   }
-  if (!is.null(ylab)) {
+  if (!is.null(ylab) && nzchar(ylab)) {
     chart <- highcharter::hc_yAxis(chart, title = list(text = ylab))
   }
 
-  # Optional tooltip formatter (JS string)
+  # --- tooltip ---------------------------------------------------
   if (!is.null(tooltip)) {
+    # user-supplied tooltip JS wins
     chart <- highcharter::hc_tooltip(
       chart,
       formatter = highcharter::JS(tooltip)
     )
-  }
-
-  # Localized last-value labels
-  if (show_last_value) {
-    decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
-    big_mark <- if (locale %in% c("da", "kl")) "." else ","
-
-    if (type %in% c("line", "spline", "area")) {
-      # <---- include "area"
-      chart <- highcharter::hc_plotOptions(
+  } else {
+    # default tooltip that respects group / digits / marks / suffix
+    if (has_group) {
+      # grouped: show category, then "group: value + suffix"
+      chart <- highcharter::hc_tooltip(
         chart,
-        series = list(
-          dataLabels = list(
-            enabled = TRUE,
-            formatter = highcharter::JS(sprintf(
-              'function() {
-                 return (this.point.index === this.series.data.length - 1)
-                   ? Highcharts.numberFormat(this.y, 0, "%s", "%s")
-                   : null;
-               }',
-              decimal_mark,
-              big_mark
-            ))
-          )
-        )
+        shared = FALSE,
+        useHTML = FALSE,
+        formatter = highcharter::JS(sprintf(
+          'function() {
+             var cat = (this.point.category !== undefined)
+               ? this.point.category
+               : this.x;
+             var name = (this.series && this.series.name)
+               ? this.series.name + ": "
+               : "";
+             var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+             if (cat !== undefined) {
+               return cat + "<br/>" + name + value;
+             }
+             return name + value;
+           }',
+          digits,
+          decimal_mark,
+          big_mark,
+          suffix_js
+        ))
       )
-    } else if (type %in% c("bar", "column")) {
-      decimal_mark <- if (locale %in% c("da", "kl")) "," else "."
-      big_mark <- if (locale %in% c("da", "kl")) "." else ","
-      chart <- highcharter::hc_plotOptions(
+    } else {
+      # ungrouped: "category: value + suffix"
+      chart <- highcharter::hc_tooltip(
         chart,
-        series = list(
-          dataLabels = list(
-            enabled = TRUE,
-            formatter = highcharter::JS(sprintf(
-              'function() {
-                 return Highcharts.numberFormat(this.y, 0, "%s", "%s");
-               }',
-              decimal_mark,
-              big_mark
-            ))
-          )
-        )
+        shared = FALSE,
+        useHTML = FALSE,
+        formatter = highcharter::JS(sprintf(
+          'function() {
+             var cat = (this.point.category !== undefined)
+               ? this.point.category
+               : this.x;
+             var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+             if (cat !== undefined) {
+               return cat + ": " + value;
+             }
+             return value;
+           }',
+          digits,
+          decimal_mark,
+          big_mark,
+          suffix_js
+        ))
       )
     }
   }
 
-  # NEW: stacking for area/column/bar charts
-  if (!is.null(stacking) && type %in% c("area", "column", "bar")) {
-    stacking <- match.arg(stacking, c("normal", "percent"))
-    chart <- highcharter::hc_plotOptions(
-      chart,
-      series = list(stacking = stacking)
-    )
+  # --- dataLabels + stacking -------------------------------------
+  series_opts <- list()
+
+  if (isTRUE(show_last_value)) {
+    if (type %in% c("line", "spline", "area")) {
+      series_opts$dataLabels <- list(
+        enabled = TRUE,
+        formatter = highcharter::JS(sprintf(
+          'function() {
+             return (this.point.index === this.series.data.length - 1)
+               ? Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s"
+               : null;
+           }',
+          digits,
+          decimal_mark,
+          big_mark,
+          suffix_js
+        ))
+      )
+    } else if (type %in% c("bar", "column")) {
+      series_opts$dataLabels <- list(
+        enabled = TRUE,
+        formatter = highcharter::JS(sprintf(
+          'function() {
+             return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           }',
+          digits,
+          decimal_mark,
+          big_mark,
+          suffix_js
+        ))
+      )
+    }
   }
 
+  if (!is.null(stacking) && type %in% c("area", "column", "bar")) {
+    stacking <- match.arg(stacking, c("normal", "percent"))
+    series_opts$stacking <- stacking
+  }
+
+  if (length(series_opts) > 0) {
+    chart <- highcharter::hc_plotOptions(chart, series = series_opts)
+  }
+
+  # --- palette ---------------------------------------------------
+  if (!is.null(palette)) {
+    pal_vals <- NULL
+
+    if (is.character(palette) && length(palette) == 1L) {
+      if (exists("statgl_palettes", inherits = TRUE)) {
+        pal_list <- get("statgl_palettes", inherits = TRUE)
+        if (!is.null(pal_list[[palette]])) {
+          pal_vals <- unname(pal_list[[palette]])
+        } else {
+          warning(
+            "Palette '",
+            palette,
+            "' not found in statgl_palettes; ignoring `palette`."
+          )
+        }
+      } else {
+        warning("statgl_palettes not found; ignoring `palette` name.")
+      }
+    } else {
+      pal_vals <- palette
+    }
+
+    if (!is.null(pal_vals)) {
+      chart <- highcharter::hc_colors(chart, pal_vals)
+    }
+  }
+
+  # --- height ----------------------------------------------------
   chart <- highcharter::hc_chart(chart, height = height)
 
   chart
