@@ -94,7 +94,7 @@ statgl_plot <- function(
   decimal.mark = ",",
   locale = NULL,
   stacking = NULL,
-  palette = NULL,
+  palette = "main",
   height = 300
 ) {
   # --- number formatting setup -----------------------------------
