@@ -114,6 +114,7 @@ statgl_table <- function(
     full_width = FALSE
   )
 
+  # If caller wants a kable object, ignore .secondary and return now
   if (!isTRUE(.as_html)) {
     return(k)
   }
@@ -126,7 +127,14 @@ statgl_table <- function(
     return(html)
   }
 
-  # 9) Give the table a unique id
+  # 9) Give the table a unique id (defensive: only if <table> exists)
+  if (!grepl("<table", html, fixed = TRUE)) {
+    warning(
+      "statgl_table: couldn't find <table> tag in HTML; skipping .secondary styling."
+    )
+    return(html)
+  }
+
   table_id <- paste0(
     "statgltbl-",
     paste(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
@@ -140,7 +148,14 @@ statgl_table <- function(
   )
 
   # 10) CSS: hide secondary cols on small **portrait** only,
-  #     and draw a red indicator border after the last primary column
+  #     and draw an indicator border after the last primary column
+  #     (defensive: drop any non-positive or NA indices)
+  sec_idx <- sec_idx[is.finite(sec_idx) & sec_idx >= 1L]
+
+  if (!length(sec_idx)) {
+    return(html)
+  }
+
   selectors_td <- paste(
     sprintf("#%s td:nth-child(%d)", table_id, sec_idx),
     collapse = ",\n  "
@@ -150,18 +165,20 @@ statgl_table <- function(
     collapse = ",\n  "
   )
 
+  # last_primary is the column IMMEDIATELY BEFORE the first secondary
   last_primary <- min(sec_idx) - 1L
-  if (last_primary < 1L) {
-    last_primary <- 1L
+  if (!is.finite(last_primary) || last_primary < 1L) {
+    # If we somehow end up with nonsense, just skip the indicator border
+    indicator_css <- ""
+  } else {
+    indicator_css <- sprintf(
+      "#%s th:nth-child(%d), #%s td:nth-child(%d) { border-right: 2px solid #e94141; }",
+      table_id,
+      last_primary,
+      table_id,
+      last_primary
+    )
   }
-
-  indicator_css <- sprintf(
-    "#%s th:nth-child(%d), #%s td:nth-child(%d) { border-right: 2px solid #e94141; }",
-    table_id,
-    last_primary,
-    table_id,
-    last_primary
-  )
 
   style <- sprintf(
     "<style>
