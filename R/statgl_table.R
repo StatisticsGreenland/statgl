@@ -1,43 +1,50 @@
-#' Create a formatted HTML table for Statgl
+#' Statgl Table Helper
 #'
-#' `statgl_table()` is a helper for turning a data frame into a
-#' Bootstrap-styled HTML table via **kableExtra**, with optional
-#' responsive hiding of “secondary” columns on small screens.
+#' Build a clean, styled HTML table suitable for Statistics Greenland pages.
+#' The function formats numeric columns, applies optional mobile-responsive
+#' column hiding, inserts group row banners (similar to
+#' [statgl_crosstable()]), and offers additional layout helpers such as
+#' bottom rules and first-column width control.
 #'
-#' By default it uses Danish/Greenlandic-style number formatting
-#' (thousands separator `"."`, decimal separator `","`), but you can
-#' override this via `.big.mark` and `.decimal.mark`.
+#' @param df A data frame to render as a table.
+#' @param ... Passed to [format()] for numeric formatting.
+#' @param .digits Number of digits used by [format()] for numeric columns.
+#' @param .big.mark Thousands separator.
+#' @param .decimal.mark Decimal separator.
+#' @param .secondary Optional tidyselect expression identifying columns that
+#'   should be hidden on small screens (mobile). Hidden via a CSS media query.
+#' @param .row_group Optional column (bare or quoted) used to create
+#'   grouped row banners. The column is removed from the printed table.
+#' @param .row_label Optional label for the first column (similar to
+#'   `.row_label` in [statgl_crosstable()]).
+#' @param .year_col Optional column that should be converted to character
+#'   before formatting (e.g., time variables).
+#' @param .replace_0s Logical; if `TRUE`, zeroes are replaced with `"[-]{}"`
+#'   to match Statistics Greenland table styling.
+#' @param .replace_nas Optional string to replace `NA` values in the table.
+#'   Defaults to no replacement.
+#' @param .first_col_width Optional CSS width (e.g. `"12em"`) applied to the
+#'   first column via [kableExtra::column_spec()].
+#' @param .bottom_rule Logical; if `TRUE`, draws a thick bottom border on the
+#'   last data row.
+#' @param .as_html Logical; if `TRUE`, return an HTML string. If `FALSE`,
+#'   return a `kableExtra` table object.
 #'
-#' @param df A data frame.
-#' @param ... Additional arguments passed on to [base::format()] when
-#'   formatting numeric columns (for example `scientific`, etc.).
-#' @param .digits Number of digits used when formatting numeric columns.
-#' @param .big.mark Thousands separator used for numeric formatting.
-#'   Defaults to `"."`.
-#' @param .decimal.mark Decimal separator used for numeric formatting.
-#'   Defaults to `","`.
-#' @param .secondary Tidyselect specification of columns that should be
-#'   considered “secondary”. These columns will be hidden on viewports
-#'   narrower than 768px (via CSS) when `.as_html = TRUE`.
-#' @param .year_col Tidyselect specification of the column(s) containing
-#'   years (e.g. `year` or `c(year, quarter)`). These column(s) are
-#'   converted to character to avoid formatting like `2,024`. Optional.
-#' @param .replace_0s Logical; if `TRUE`, any cell equal to the literal
-#'   string `"0"` is replaced by `"[-]{}"` (intended as a special
-#'   missing/zero placeholder).
-#' @param .as_html Logical; if `FALSE` (default), the function returns
-#'   the `knitr_kable` object created by **kableExtra**. If `TRUE`, the
-#'   function returns a single character string with inline CSS and the
-#'   `<table>` HTML.
+#' @return A `kableExtra` table or HTML string, depending on `.as_html`.
 #'
-#' @return
-#' If `.as_html = FALSE`, a `knitr_kable` / `kableExtra` object.
-#' If `.as_html = TRUE`, a length-1 character vector containing HTML.
+#' @examples
+#' \dontrun{
+#' df |>
+#'   statgl_table(
+#'     .row_group       = region,
+#'     .row_label       = "",
+#'     .replace_nas     = "..",
+#'     .first_col_width = "12em",
+#'     .bottom_rule     = TRUE,
+#'     .as_html         = TRUE
+#'   )
+#' }
 #'
-#' @importFrom dplyr mutate across where
-#' @importFrom tidyselect eval_select
-#' @importFrom rlang enquo
-#' @importFrom kableExtra kable kable_styling
 #' @export
 statgl_table <- function(
   df,
@@ -45,28 +52,49 @@ statgl_table <- function(
   .digits = 3,
   .big.mark = ".",
   .decimal.mark = ",",
-  .secondary = NULL, # tidyselect
+  .secondary = NULL,
+  .row_group = NULL,
+  .row_label = NULL,
   .year_col,
   .replace_0s = FALSE,
+  .replace_nas = NULL,
+  .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 ) {
-  # Basic check so error messages are clearer in user code
   if (!is.data.frame(df)) {
     stop("`df` must be a data frame.", call. = FALSE)
   }
 
-  # 1) Alignments: first column left, rest right
-  aligns <- paste0(c("l", rep("r", max(ncol(df) - 1L, 0L))), collapse = "")
-
-  # 2) Convert year column(s) to character (avoid 2,024 style formatting)
+  # --- year column as character --------------------------------------------
   if (!missing(.year_col)) {
-    df <- dplyr::mutate(
-      df,
-      dplyr::across({{ .year_col }}, as.character)
-    )
+    df <- dplyr::mutate(df, dplyr::across({{ .year_col }}, as.character))
   }
 
-  # 3) Optional: replace literal "0" with placeholder
+  # --- capture and remove row-group column (like statgl_crosstable) --------
+  row_group_vec <- NULL
+
+  if (!missing(.row_group) && !rlang::quo_is_null(rlang::enquo(.row_group))) {
+    if (is.character(.row_group)) {
+      if (length(.row_group) != 1L || !.row_group %in% names(df)) {
+        stop(
+          "`.row_group` must be a single existing column name.",
+          call. = FALSE
+        )
+      }
+      row_group_vec <- df[[.row_group]]
+      df <- df[, setdiff(names(df), .row_group), drop = FALSE]
+    } else {
+      rg_idx <- tidyselect::eval_select(rlang::enquo(.row_group), df)
+      if (length(rg_idx) != 1L) {
+        stop("`.row_group` must select exactly one column.", call. = FALSE)
+      }
+      row_group_vec <- df[[rg_idx]]
+      df <- df[, -rg_idx, drop = FALSE]
+    }
+  }
+
+  # --- replace 0s -----------------------------------------------------------
   if (isTRUE(.replace_0s)) {
     df[] <- lapply(df, function(x) {
       x_chr <- trimws(as.character(x))
@@ -75,7 +103,7 @@ statgl_table <- function(
     })
   }
 
-  # 4) Format numeric columns (Statgl style by default)
+  # --- format numeric columns ----------------------------------------------
   df <- dplyr::mutate(
     df,
     dplyr::across(
@@ -91,7 +119,29 @@ statgl_table <- function(
     )
   )
 
-  # 5) Tidyselect: which columns are "secondary"?
+  # --- replace NAs in table + group labels ---------------------------------
+  if (!is.null(.replace_nas)) {
+    df[] <- lapply(df, function(x) {
+      x_chr <- as.character(x)
+      x_chr[is.na(x)] <- .replace_nas
+      x_chr
+    })
+    if (!is.null(row_group_vec)) {
+      rg_chr <- as.character(row_group_vec)
+      rg_chr[is.na(row_group_vec)] <- .replace_nas
+      row_group_vec <- rg_chr
+    }
+  }
+
+  # --- first column label (like statgl_crosstable) -------------------------
+  if (!is.null(.row_label) && ncol(df) >= 1L) {
+    colnames(df)[1] <- .row_label
+  }
+
+  # --- alignment: first col left, rest right -------------------------------
+  aligns <- paste0(c("l", rep("r", max(ncol(df) - 1L, 0L))), collapse = "")
+
+  # --- secondary columns (on the printed df) -------------------------------
   sec_idx <- integer(0)
   if (!is.null(.secondary)) {
     sec_idx <- unname(
@@ -99,7 +149,7 @@ statgl_table <- function(
     )
   }
 
-  # 6) Build kable
+  # --- build base kable (after dropping group column) ----------------------
   k <- kableExtra::kable(
     df,
     format = "html",
@@ -107,31 +157,58 @@ statgl_table <- function(
     escape = FALSE
   )
 
+  # --- group rows: exact same pattern as statgl_crosstable -----------------
+  if (!is.null(row_group_vec)) {
+    grp_chr <- as.character(row_group_vec)
+    grp_rle <- rle(grp_chr)
+
+    index <- grp_rle$lengths
+    names(index) <- grp_rle$values
+
+    # drop empty / NA labels
+    ok <- !is.na(names(index)) & trimws(names(index)) != ""
+    index <- index[ok]
+
+    if (length(index)) {
+      k <- kableExtra::group_rows(k, index = index)
+    }
+  }
+
+  # --- styling --------------------------------------------------------------
   k <- kableExtra::kable_styling(
     k,
     bootstrap_options = c("striped", "hover", "condensed", "responsive")
   )
 
-  # If caller wants a kable object, just return it as-is
+  if (!is.null(.first_col_width)) {
+    k <- kableExtra::column_spec(k, 1, width = .first_col_width)
+  }
+
+  if (isTRUE(.bottom_rule) && nrow(df) > 0) {
+    k <- kableExtra::row_spec(
+      k,
+      nrow(df),
+      extra_css = "border-bottom: 2px solid #000;"
+    )
+  }
+
+  # --- return kable unless HTML requested ----------------------------------
   if (!isTRUE(.as_html)) {
     return(k)
   }
 
-  # 7) Turn into HTML string
   html <- as.character(k)
 
-  # 8) If no secondary columns defined, we’re done
+  # --- responsive hide .secondary columns ----------------------------------
   if (!length(sec_idx)) {
     return(html)
   }
 
-  # 9) Give the table a unique id
   table_id <- paste0(
     "statgltbl-",
     paste(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
   )
 
-  # add id to the first <table ...> occurrence
   html <- sub(
     "<table",
     paste0("<table id=\"", table_id, "\""),
@@ -139,7 +216,6 @@ statgl_table <- function(
     fixed = TRUE
   )
 
-  # 10) Build CSS that hides those columns on small screens
   selectors_td <- paste(
     sprintf("#%s td:nth-child(%d)", table_id, sec_idx),
     collapse = ",\n  "
@@ -162,12 +238,8 @@ statgl_table <- function(
     selectors_th
   )
 
-  # 11) Prepend style block so it travels with the table
-  html <- paste(style, html, sep = "\n")
-
-  html
+  paste(style, html, sep = "\n")
 }
-
 
 #' Crosstable helper for Statgl
 #'

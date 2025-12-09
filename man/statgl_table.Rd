@@ -2,7 +2,7 @@
 % Please edit documentation in R/statgl_table.R
 \name{statgl_table}
 \alias{statgl_table}
-\title{Create a formatted HTML table for Statgl}
+\title{Statgl Table Helper}
 \usage{
 statgl_table(
   df,
@@ -11,53 +11,75 @@ statgl_table(
   .big.mark = ".",
   .decimal.mark = ",",
   .secondary = NULL,
+  .row_group = NULL,
+  .row_label = NULL,
   .year_col,
   .replace_0s = FALSE,
+  .replace_nas = NULL,
+  .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 )
 }
 \arguments{
-\item{df}{A data frame.}
+\item{df}{A data frame to render as a table.}
 
-\item{...}{Additional arguments passed on to \code{\link[base:format]{base::format()}} when
-formatting numeric columns (for example \code{scientific}, etc.).}
+\item{...}{Passed to \code{\link[=format]{format()}} for numeric formatting.}
 
-\item{.digits}{Number of digits used when formatting numeric columns.}
+\item{.digits}{Number of digits used by \code{\link[=format]{format()}} for numeric columns.}
 
-\item{.big.mark}{Thousands separator used for numeric formatting.
-Defaults to \code{"."}.}
+\item{.big.mark}{Thousands separator.}
 
-\item{.decimal.mark}{Decimal separator used for numeric formatting.
-Defaults to \code{","}.}
+\item{.decimal.mark}{Decimal separator.}
 
-\item{.secondary}{Tidyselect specification of columns that should be
-considered “secondary”. These columns will be hidden on viewports
-narrower than 768px (via CSS) when \code{.as_html = TRUE}.}
+\item{.secondary}{Optional tidyselect expression identifying columns that
+should be hidden on small screens (mobile). Hidden via a CSS media query.}
 
-\item{.year_col}{Tidyselect specification of the column(s) containing
-years (e.g. \code{year} or \code{c(year, quarter)}). These column(s) are
-converted to character to avoid formatting like \verb{2,024}. Optional.}
+\item{.row_group}{Optional column (bare or quoted) used to create
+grouped row banners. The column is removed from the printed table.}
 
-\item{.replace_0s}{Logical; if \code{TRUE}, any cell equal to the literal
-string \code{"0"} is replaced by \code{"[-]{}"} (intended as a special
-missing/zero placeholder).}
+\item{.row_label}{Optional label for the first column (similar to
+\code{.row_label} in \code{\link[=statgl_crosstable]{statgl_crosstable()}}).}
 
-\item{.as_html}{Logical; if \code{FALSE} (default), the function returns
-the \code{knitr_kable} object created by \strong{kableExtra}. If \code{TRUE}, the
-function returns a single character string with inline CSS and the
-\verb{<table>} HTML.}
+\item{.year_col}{Optional column that should be converted to character
+before formatting (e.g., time variables).}
+
+\item{.replace_0s}{Logical; if \code{TRUE}, zeroes are replaced with \code{"[-]{}"}
+to match Statistics Greenland table styling.}
+
+\item{.replace_nas}{Optional string to replace \code{NA} values in the table.
+Defaults to no replacement.}
+
+\item{.first_col_width}{Optional CSS width (e.g. \code{"12em"}) applied to the
+first column via \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}}.}
+
+\item{.bottom_rule}{Logical; if \code{TRUE}, draws a thick bottom border on the
+last data row.}
+
+\item{.as_html}{Logical; if \code{TRUE}, return an HTML string. If \code{FALSE},
+return a \code{kableExtra} table object.}
 }
 \value{
-If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.
-If \code{.as_html = TRUE}, a length-1 character vector containing HTML.
+A \code{kableExtra} table or HTML string, depending on \code{.as_html}.
 }
 \description{
-\code{statgl_table()} is a helper for turning a data frame into a
-Bootstrap-styled HTML table via \strong{kableExtra}, with optional
-responsive hiding of “secondary” columns on small screens.
+Build a clean, styled HTML table suitable for Statistics Greenland pages.
+The function formats numeric columns, applies optional mobile-responsive
+column hiding, inserts group row banners (similar to
+\code{\link[=statgl_crosstable]{statgl_crosstable()}}), and offers additional layout helpers such as
+bottom rules and first-column width control.
 }
-\details{
-By default it uses Danish/Greenlandic-style number formatting
-(thousands separator \code{"."}, decimal separator \code{","}), but you can
-override this via \code{.big.mark} and \code{.decimal.mark}.
+\examples{
+\dontrun{
+df |>
+  statgl_table(
+    .row_group       = region,
+    .row_label       = "",
+    .replace_nas     = "..",
+    .first_col_width = "12em",
+    .bottom_rule     = TRUE,
+    .as_html         = TRUE
+  )
+}
+
 }
