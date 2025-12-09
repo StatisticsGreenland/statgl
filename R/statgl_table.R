@@ -50,16 +50,15 @@ statgl_table <- function(
   .replace_0s = FALSE,
   .as_html = FALSE
 ) {
+  # Basic check so error messages are clearer in user code
   if (!is.data.frame(df)) {
     stop("`df` must be a data frame.", call. = FALSE)
   }
 
-  neutral_ink <- "#7d7d7d"
-
   # 1) Alignments: first column left, rest right
   aligns <- paste0(c("l", rep("r", max(ncol(df) - 1L, 0L))), collapse = "")
 
-  # 2) Convert year column(s) to character
+  # 2) Convert year column(s) to character (avoid 2,024 style formatting)
   if (!missing(.year_col)) {
     df <- dplyr::mutate(
       df,
@@ -71,12 +70,12 @@ statgl_table <- function(
   if (isTRUE(.replace_0s)) {
     df[] <- lapply(df, function(x) {
       x_chr <- trimws(as.character(x))
-      x_chr[x_chr == "0"] <- "-"
+      x_chr[x_chr == "0"] <- "[-]{}"
       x_chr
     })
   }
 
-  # 4) Format numeric columns
+  # 4) Format numeric columns (Statgl style by default)
   df <- dplyr::mutate(
     df,
     dplyr::across(
@@ -110,11 +109,10 @@ statgl_table <- function(
 
   k <- kableExtra::kable_styling(
     k,
-    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
-    full_width = FALSE
+    bootstrap_options = c("striped", "hover", "condensed", "responsive")
   )
 
-  # If caller wants a kable object, ignore .secondary and return now
+  # If caller wants a kable object, just return it as-is
   if (!isTRUE(.as_html)) {
     return(k)
   }
@@ -127,19 +125,13 @@ statgl_table <- function(
     return(html)
   }
 
-  # 9) Give the table a unique id (defensive: only if <table> exists)
-  if (!grepl("<table", html, fixed = TRUE)) {
-    warning(
-      "statgl_table: couldn't find <table> tag in HTML; skipping .secondary styling."
-    )
-    return(html)
-  }
-
+  # 9) Give the table a unique id
   table_id <- paste0(
     "statgltbl-",
     paste(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
   )
 
+  # add id to the first <table ...> occurrence
   html <- sub(
     "<table",
     paste0("<table id=\"", table_id, "\""),
@@ -147,15 +139,7 @@ statgl_table <- function(
     fixed = TRUE
   )
 
-  # 10) CSS: hide secondary cols on small **portrait** only,
-  #     and draw an indicator border after the last primary column
-  #     (defensive: drop any non-positive or NA indices)
-  sec_idx <- sec_idx[is.finite(sec_idx) & sec_idx >= 1L]
-
-  if (!length(sec_idx)) {
-    return(html)
-  }
-
+  # 10) Build CSS that hides those columns on small screens
   selectors_td <- paste(
     sprintf("#%s td:nth-child(%d)", table_id, sec_idx),
     collapse = ",\n  "
@@ -165,40 +149,22 @@ statgl_table <- function(
     collapse = ",\n  "
   )
 
-  # last_primary is the column IMMEDIATELY BEFORE the first secondary
-  last_primary <- min(sec_idx) - 1L
-  if (!is.finite(last_primary) || last_primary < 1L) {
-    # If we somehow end up with nonsense, just skip the indicator border
-    indicator_css <- ""
-  } else {
-    indicator_css <- sprintf(
-      "#%s th:nth-child(%d), #%s td:nth-child(%d) { border-right: 2px solid #e94141; }",
-      table_id,
-      last_primary,
-      table_id,
-      last_primary
-    )
-  }
-
   style <- sprintf(
     "<style>
-/* hide secondary cols only on small portrait screens */
-@media (max-width: 768px) and (orientation: portrait) {
+@media (max-width: 768px) {
   %s,
   %s {
     display: none;
   }
 }
-
-/* visual indicator that more columns exist */
-%s
 </style>",
     selectors_td,
-    selectors_th,
-    indicator_css
+    selectors_th
   )
 
+  # 11) Prepend style block so it travels with the table
   html <- paste(style, html, sep = "\n")
+
   html
 }
 
