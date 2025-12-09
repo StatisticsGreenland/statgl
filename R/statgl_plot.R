@@ -175,30 +175,43 @@ statgl_plot <- function(
   }
 
   # --- axes ------------------------------------------------------
-  # X axis
-  x_axis_opts <- list()
+  neutral_ink <- "#7d7d7d"
 
-  # No extra right padding hack – rely on defaults now
+  # X axis
+  x_axis_opts <- list(
+    labels = list(style = list(color = neutral_ink))
+  )
+
   if (!is.null(xlab) && nzchar(xlab)) {
-    x_axis_opts$title <- list(text = xlab)
+    x_axis_opts$title <- list(
+      text = xlab,
+      style = list(color = neutral_ink)
+    )
   } else {
-    x_axis_opts$title <- list(text = NULL)
+    x_axis_opts$title <- list(
+      text = NULL,
+      style = list(color = neutral_ink)
+    )
   }
 
   chart <- do.call(highcharter::hc_xAxis, c(list(chart), x_axis_opts))
 
   # Y axis
-  y_axis_opts <- list()
+  y_axis_opts <- list(
+    labels = list(style = list(color = neutral_ink))
+  )
 
   if (is.null(ylab) || !nzchar(ylab)) {
     y_axis_opts$title <- list(
       text = NULL,
-      enabled = FALSE
+      enabled = FALSE,
+      style = list(color = neutral_ink)
     )
   } else {
     y_axis_opts$title <- list(
       text = ylab,
-      enabled = TRUE
+      enabled = TRUE,
+      style = list(color = neutral_ink)
     )
   }
 
@@ -212,61 +225,65 @@ statgl_plot <- function(
       formatter = highcharter::JS(tooltip)
     )
   } else {
-    # default tooltip that respects group / digits / marks / suffix
-    # but does NOT try to reconstruct the x label (avoids ugly ints for dates)
+    # Build a pointFormatter that optionally prepends the series name
     if (has_group) {
-      # grouped: "series name: value + suffix"
-      chart <- highcharter::hc_tooltip(
-        chart,
-        shared = FALSE,
-        useHTML = FALSE,
-        formatter = highcharter::JS(sprintf(
-          'function() {
-             var name = (this.series && this.series.name)
-               ? this.series.name + ": "
-               : "";
-             var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
-             return name + value;
-           }',
-          digits,
-          decimal_mark,
-          big_mark,
-          suffix_js
-        ))
-      )
+      pf_js <- highcharter::JS(sprintf(
+        'function() {
+           var name = (this.series && this.series.name)
+             ? this.series.name + ": "
+             : "";
+           var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           return name + value;
+         }',
+        digits,
+        decimal_mark,
+        big_mark,
+        suffix_js
+      ))
     } else {
-      # ungrouped: just "value + suffix"
-      chart <- highcharter::hc_tooltip(
-        chart,
-        shared = FALSE,
-        useHTML = FALSE,
-        formatter = highcharter::JS(sprintf(
-          'function() {
-             var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
-             return value;
-           }',
-          digits,
-          decimal_mark,
-          big_mark,
-          suffix_js
-        ))
-      )
+      pf_js <- highcharter::JS(sprintf(
+        'function() {
+           var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           return value;
+         }',
+        digits,
+        decimal_mark,
+        big_mark,
+        suffix_js
+      ))
     }
+
+    chart <- highcharter::hc_tooltip(
+      chart,
+      shared = FALSE, # can change to has_group later if you want shared tooltips
+      valueDecimals = digits,
+      valueSuffix = suffix,
+      pointFormatter = pf_js
+    )
   }
+
+  # consistent tooltip text color
+  chart <- highcharter::hc_tooltip(
+    chart,
+    style = list(color = neutral_ink)
+  )
 
   # --- dataLabels + stacking -------------------------------------
   series_opts <- list()
 
   if (isTRUE(show_last_value)) {
     if (type %in% c("line", "spline", "area")) {
-      # only label the last point, using default positioning
       series_opts$dataLabels <- list(
         enabled = TRUE,
+        style = list(
+          color = neutral_ink,
+          textOutline = "none" # 👈 turn off the white outline
+        ),
         formatter = highcharter::JS(sprintf(
           'function() {
-             if (this.point.index !== this.series.data.length - 1) return null;
-             return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
-           }',
+           if (this.point.index !== this.series.data.length - 1) return null;
+           return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+         }',
           digits,
           decimal_mark,
           big_mark,
@@ -276,10 +293,14 @@ statgl_plot <- function(
     } else if (type %in% c("bar", "column")) {
       series_opts$dataLabels <- list(
         enabled = TRUE,
+        style = list(
+          color = neutral_ink,
+          textOutline = "none" # 👈 same here
+        ),
         formatter = highcharter::JS(sprintf(
           'function() {
-             return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
-           }',
+           return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+         }',
           digits,
           decimal_mark,
           big_mark,
