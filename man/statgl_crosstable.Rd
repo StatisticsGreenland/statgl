@@ -16,6 +16,7 @@ statgl_crosstable(
   .caption = NULL,
   .year_col = NULL,
   .bold_rows = NULL,
+  .secondary = NULL,
   .replace_0s = FALSE,
   .replace_nas = FALSE,
   .first_col_width = NULL,
@@ -61,6 +62,13 @@ should be converted to character to avoid formatting like \verb{2,024}.}
 \item a one-sided formula (e.g. \code{~ tid == max(tid)}) evaluated on the wide
 table; it must return a logical vector.
 }}
+
+\item{.secondary}{Optional named list specifying which \strong{column groups}
+should be treated as secondary and dropped from the table. Each element
+should be a vector of values for a grouping variable used in \code{...}, e.g.
+\code{list(gender = "Total", citydistrict = "Total")}. Any column whose
+column-header combination contains one of these values is removed from the
+output. Values referring to non-column variables are silently ignored.}
 
 \item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
 literal \code{"0"} with \code{"–"}), or a single character string used as a custom
