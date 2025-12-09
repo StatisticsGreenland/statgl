@@ -222,6 +222,12 @@ statgl_table <- function(
 #'   * a character vector matching values in the primary stub column, or
 #'   * a one-sided formula (e.g. `~ tid == max(tid)`) evaluated on the wide
 #'     table; it must return a logical vector.
+#' @param .secondary Optional named list specifying which **column groups**
+#'   should be treated as secondary and dropped from the table. Each element
+#'   should be a vector of values for a grouping variable used in `...`, e.g.
+#'   `list(gender = "Total", citydistrict = "Total")`. Any column whose
+#'   column-header combination contains one of these values is removed from the
+#'   output. Values referring to non-column variables are silently ignored.
 #' @param .replace_0s Either `FALSE` (no special handling), `TRUE` (replace
 #'   literal `"0"` with `"–"`), or a single character string used as a custom
 #'   replacement for `"0"`.
@@ -235,6 +241,7 @@ statgl_table <- function(
 #' @param .as_html Logical; if `FALSE` (default) returns a `kableExtra` table
 #'   object; if `TRUE`, returns a single HTML string.
 #'
+#'
 #' @return
 #' If `.as_html = FALSE`, a `knitr_kable` / `kableExtra` object.
 #'
@@ -246,6 +253,7 @@ statgl_table <- function(
 #' @importFrom rlang enquos enquo sym f_rhs eval_tidy is_formula quo_name
 #' @importFrom kableExtra kable kable_styling add_header_above group_rows
 #'   column_spec row_spec
+#'
 #' @export
 statgl_crosstable <- function(
   df,
@@ -259,6 +267,7 @@ statgl_crosstable <- function(
   .caption = NULL,
   .year_col = NULL, # tidyselect spec
   .bold_rows = NULL, # numeric / character / formula
+  .secondary = NULL, # list(dim_name = values_to_hide)
   .replace_0s = FALSE, # FALSE / TRUE / "custom"
   .replace_nas = FALSE, # FALSE / TRUE / "custom"
   .first_col_width = NULL,
@@ -382,17 +391,43 @@ statgl_crosstable <- function(
   orig_cols <- names(df_wide)
   wide_cols <- setdiff(orig_cols, row_names)
 
+  # labels shown in the second header row (e.g. "I alt", "Kvinder", ...)
   display_labels <- sub("^[^–]+\\s*–\\s*", "", wide_cols)
 
-  if (length(rest_groups) == 0) {
-    group_counts <- df %>%
-      dplyr::distinct(!!primary_group) %>%
-      dplyr::count(!!primary_group, name = "n")
-  } else {
-    group_counts <- df %>%
-      dplyr::distinct(!!primary_group, !!!rest_groups) %>%
-      dplyr::count(!!primary_group, name = "n")
+  # build a combo data frame describing each column group combination,
+  # aligned to wide_cols
+  combo_df <- df %>%
+    dplyr::distinct(!!!groups) %>%
+    dplyr::arrange(!!primary_group, !!!rest_groups) %>%
+    tidyr::unite("col_key", !!!groups, sep = " – ", remove = FALSE)
+
+  combo_df <- combo_df[match(wide_cols, combo_df$col_key), ]
+
+  # ---- 6a) Apply .secondary: drop superfluous column groups --------
+  if (!is.null(.secondary) && length(wide_cols)) {
+    sec_mask <- rep(FALSE, nrow(combo_df))
+
+    for (nm in names(.secondary)) {
+      if (!nm %in% names(combo_df)) {
+        next
+      }
+      vals <- .secondary[[nm]]
+      sec_mask <- sec_mask | combo_df[[nm]] %in% vals
+    }
+
+    keep_mask <- !sec_mask
+
+    wide_cols <- wide_cols[keep_mask]
+    display_labels <- display_labels[keep_mask]
+    combo_df <- combo_df[keep_mask, , drop = FALSE]
+
+    df_wide <- df_wide[, c(row_names, wide_cols), drop = FALSE]
+    df_logic <- df_logic[, c(row_names, wide_cols), drop = FALSE]
   }
+
+  # after dropping secondary columns, recompute group_counts to match
+  group_counts <- combo_df %>%
+    dplyr::count(!!primary_group, name = "n")
 
   primary_name <- rlang::quo_name(primary_group)
 
