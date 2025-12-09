@@ -25,6 +25,7 @@ statgl_plot(
   locale = NULL,
   stacking = NULL,
   palette = "main",
+  palette_reverse = FALSE,
   height = 300
 )
 }
@@ -55,8 +56,7 @@ captions are right-aligned.}
 
 \item{show_last_value}{Logical; if \code{TRUE} (default), adds data labels for the
 final point of each \code{"line"}, \code{"spline"} and \code{"area"} series, or for all
-bars in \code{"bar"} / \code{"column"} charts. For line/area/spline charts, the label
-is placed slightly to the right of the final point.}
+bars in \code{"bar"} / \code{"column"} charts.}
 
 \item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, no axis title is shown and
 any automatic titles inferred by \code{\link[highcharter:hchart]{highcharter::hchart()}} are disabled.}
@@ -92,8 +92,10 @@ charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking)
 \code{"main"}, \code{"winter"}, \code{"autumn"}), or
 \item a character vector of colour hex codes to pass directly to
 \code{\link[highcharter:hc_colors]{highcharter::hc_colors()}}.
-}
+}}
 
+\item{palette_reverse}{Logical; if \code{TRUE}, reverse the palette when a named
+Statgl palette is used. Ignored when \code{palette} is a vector of hex colours.
 If the named palette is not found, a warning is issued and the default
 Highcharts colours are used.}
 
@@ -107,20 +109,6 @@ A \link[highcharter:highchart]{highcharter::highchart} object.
 \code{statgl_plot()} is a wrapper around \code{\link[highcharter:hchart]{highcharter::hchart()}} that provides
 Statgl-friendly defaults for chart types, formatting, labels, colors, and
 layout. It handles number formatting, suffixes, value labels, axis-title
-suppression, grouped tooltips, stacking, colour palettes, and placing
-last-value labels slightly to the right of the final point in line/area
-charts.
-}
-\examples{
-\dontrun{
-# Grouped time series with suffix and Statgl palette
-statgl_fetch("BEXSTNUK", citydistrict = "*") \%>\%
-  statgl_plot(
-    time,
-    group   = citydistrict,
-    suffix  = " personer",
-    locale  = "da",
-    palette = "spring"
-  )
-}
+suppression, grouped tooltips, stacking, colour palettes, and optionally
+highlighting the last values in line/area charts.
 }

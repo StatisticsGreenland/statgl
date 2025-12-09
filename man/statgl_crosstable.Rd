@@ -9,25 +9,41 @@ statgl_crosstable(
   ...,
   .value = value,
   .row = NULL,
+  .row_group = NULL,
+  .row_label = NULL,
   .big.mark = ".",
   .decimal.mark = ",",
   .caption = NULL,
   .year_col = NULL,
+  .bold_rows = NULL,
+  .replace_0s = FALSE,
+  .replace_nas = FALSE,
+  .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 )
 }
 \arguments{
 \item{df}{A data frame.}
 
-\item{...}{Grouping columns for the column headers (e.g. \code{køn},
-\code{hændelsestype}). The first group becomes the top-level header;
-remaining groups form sub-headers.}
+\item{...}{Grouping columns for the \strong{column headers} (e.g. \code{køn},
+\code{hændelsestype}). The first group becomes the top-level header; remaining
+groups form sub-headers.}
 
 \item{.value}{Column used for the cell values (default \code{value}).}
 
-\item{.row}{Optional row variable. If \code{NULL}, the function will try
-to auto-detect a row variable as the one remaining column not used
-in \code{...} or \code{.value}.}
+\item{.row}{Tidyselect specification of one or more \strong{row stub} columns.
+These are shown on the left of the table. If \code{NULL}, all columns not used
+in \code{...} or \code{.value} are used as row variables.}
+
+\item{.row_group}{Optional tidyselect specification of one or more stub
+columns to use for \strong{row grouping}. Currently the first selected column is
+used to create group headers via \code{\link[kableExtra:group_rows]{kableExtra::group_rows()}}, and the
+repeated values in that column are hidden inside the table body.}
+
+\item{.row_label}{Optional label spanning all stub columns in the top header
+row. If \code{NULL} or \code{""}, a blank label is used; when blank, the stub column
+names are also hidden.}
 
 \item{.big.mark}{Thousands separator used for numeric formatting.}
 
@@ -35,17 +51,47 @@ in \code{...} or \code{.value}.}
 
 \item{.caption}{Optional table caption passed to \strong{kableExtra}.}
 
-\item{.year_col}{Optional tidyselect specification of year column(s)
-that should be converted to character to avoid \verb{2,024} formatting.}
+\item{.year_col}{Optional tidyselect specification of year column(s) that
+should be converted to character to avoid formatting like \verb{2,024}.}
 
-\item{.as_html}{Logical; if \code{FALSE} (default) returns a kable object;
-if \code{TRUE}, returns an HTML string.}
+\item{.bold_rows}{Optional specification of rows to render in bold. Can be:
+\itemize{
+\item an integer vector of row positions (slice-style),
+\item a character vector matching values in the primary stub column, or
+\item a one-sided formula (e.g. \code{~ tid == max(tid)}) evaluated on the wide
+table; it must return a logical vector.
+}}
+
+\item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
+literal \code{"0"} with \code{"–"}), or a single character string used as a custom
+replacement for \code{"0"}.}
+
+\item{.replace_nas}{Either \code{FALSE} (leave \code{NA} as is), \code{TRUE} (replace \code{NA}
+with \code{"."}), or a single character string used as a custom replacement for
+\code{NA}.}
+
+\item{.first_col_width}{Optional CSS width passed to
+\code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}
+
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), a thicker bottom border is
+added to the last data row.}
+
+\item{.as_html}{Logical; if \code{FALSE} (default) returns a \code{kableExtra} table
+object; if \code{TRUE}, returns a single HTML string.}
 }
 \value{
 If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.
+
 If \code{.as_html = TRUE}, a length-1 character vector containing HTML.
 }
 \description{
-Build a wide crosstable with grouped column headers and formatted
-numeric values, suitable for HTML display via \strong{kableExtra}.
+Build a wide crosstable with grouped column headers and formatted numeric
+values, suitable for HTML display via \strong{kableExtra}.
+}
+\details{
+The columns in \code{...} define the column layout: the first becomes the
+top-level header, and any additional columns form sub-headers. One or more
+remaining columns are used as row “stub” variables and shown on the left. A
+row-group variable can be promoted to group headers (using
+\code{\link[kableExtra:group_rows]{kableExtra::group_rows()}}) so several rows share a common label.
 }
