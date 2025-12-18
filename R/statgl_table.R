@@ -326,7 +326,6 @@ statgl_crosstable <- function(
   .replace_0s = FALSE, # FALSE / TRUE / "custom"
   .replace_nas = FALSE, # FALSE / TRUE / "custom"
   .first_col_width = NULL,
-  .rule = TRUE,
   .as_html = FALSE
 ) {
   if (!is.data.frame(df)) {
@@ -597,12 +596,6 @@ statgl_crosstable <- function(
 
   if (length(bold_idx)) {
     kb <- kableExtra::row_spec(kb, bold_idx, bold = TRUE)
-  }
-
-  # ---- 9) Rule ----------------------------------------
-  # optional table-level border class
-  if (isTRUE(.rule)) {
-    kb <- kableExtra::add_class(kb, "statgl-crosstable-rule")
   }
 
   if (.as_html) {
