@@ -302,7 +302,7 @@ statgl_plot <- function(
         enabled = TRUE,
         style = list(
           color = neutral_ink,
-          textOutline = "2px rgba(255,255,255,0.75)" # 👈 same here
+          textOutline = ".75px white"
         ),
         formatter = highcharter::JS(sprintf(
           'function() {
