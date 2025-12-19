@@ -301,8 +301,7 @@ statgl_plot <- function(
       series_opts$dataLabels <- list(
         enabled = TRUE,
         style = list(
-          color = neutral_ink,
-          textOutline = ".75px white"
+          color = neutral_ink
         ),
         formatter = highcharter::JS(sprintf(
           'function() {
@@ -408,12 +407,66 @@ statgl_plot <- function(
   chart <- highcharter::hc_chart(chart, height = height)
 
   # --- legend ----------------------------------------------------
-
   chart <- highcharter::hc_legend(
     chart,
     itemStyle = list(
       color = "#7d7d7d"
     )
+  )
+
+  chart <- htmlwidgets::onRender(
+    chart,
+    "
+  function(el, x) {
+
+    function findChart() {
+      // Highcharts keeps all charts in Highcharts.charts
+      for (var i = 0; i < Highcharts.charts.length; i++) {
+        var c = Highcharts.charts[i];
+        if (c && c.renderTo && c.renderTo === el) return c;
+      }
+      // fallback: sometimes renderTo is a child of el
+      for (var i = 0; i < Highcharts.charts.length; i++) {
+        var c = Highcharts.charts[i];
+        if (c && c.renderTo && el.contains(c.renderTo)) return c;
+      }
+      return null;
+    }
+
+    function applyOutline() {
+      var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      // pick what you actually want
+      var outline = dark
+        ? '.5px rgba(0,0,0,0.70)'          // dark mode: dark halo (prevents glow)
+        : '.5px rgba(255,255,255,0.35)'; // light mode: subtle off-white halo
+
+      var chart = findChart();
+      if (!chart) return;
+
+      chart.update({
+        plotOptions: {
+          series: {
+            dataLabels: {
+              style: { textOutline: outline }
+            }
+          }
+        }
+      }, false);
+
+      chart.redraw();
+    }
+
+    applyOutline();
+
+    // Update live if the OS/browser theme toggles
+    if (window.matchMedia) {
+      var mql = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mql.addEventListener) mql.addEventListener('change', applyOutline);
+      else if (mql.addListener) mql.addListener(applyOutline); // Safari fallback
+    }
+  }
+  "
   )
 
   chart
