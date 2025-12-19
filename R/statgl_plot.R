@@ -284,7 +284,7 @@ statgl_plot <- function(
         enabled = TRUE,
         style = list(
           color = neutral_ink,
-          textOutline = "none" # 👈 turn off the white outline
+          textOutline = "white" #
         ),
         formatter = highcharter::JS(sprintf(
           'function() {
@@ -302,7 +302,7 @@ statgl_plot <- function(
         enabled = TRUE,
         style = list(
           color = neutral_ink,
-          textOutline = "none" # 👈 same here
+          textOutline = "2px rgba(255,255,255,0.75)" # 👈 same here
         ),
         formatter = highcharter::JS(sprintf(
           'function() {
