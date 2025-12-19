@@ -400,5 +400,14 @@ statgl_plot <- function(
   # --- height ----------------------------------------------------
   chart <- highcharter::hc_chart(chart, height = height)
 
+  # --- legend ----------------------------------------------------
+
+  chart <- highcharter::hc_legend(
+    chart,
+    itemStyle = list(
+      color = "#7d7d7d"
+    )
+  )
+
   chart
 }
