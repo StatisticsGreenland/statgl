@@ -198,7 +198,14 @@ statgl_plot <- function(
 
   # Y axis
   y_axis_opts <- list(
-    labels = list(style = list(color = neutral_ink))
+    labels = list(
+      style = list(color = neutral_ink)
+    ),
+    title = list(
+      style = list(color = "#7d7d7d")
+    ),
+    gridLineColor = "#7d7d7d",
+    gridLineWidth = 0.25
   )
 
   if (is.null(ylab) || !nzchar(ylab)) {
