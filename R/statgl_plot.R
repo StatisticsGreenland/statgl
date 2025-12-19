@@ -416,7 +416,7 @@ statgl_plot <- function(
 
   chart <- htmlwidgets::onRender(
     chart,
-    "
+    '
   function(el, x) {
 
     function findChart() {
@@ -434,12 +434,12 @@ statgl_plot <- function(
     }
 
     function applyOutline() {
-      var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
       // pick what you actually want
       var outline = dark
-        ? '.5px rgba(0,0,0,0.70)'          // dark mode: dark halo (prevents glow)
-        : '.5px rgba(255,255,255,0.35)'; // light mode: subtle off-white halo
+        ? ".5px rgba(0,0,0,0.70)"          // dark mode: dark halo (prevents glow)
+        : ".5px rgba(255,255,255,0.35)"; // light mode: subtle off-white halo
 
       var chart = findChart();
       if (!chart) return;
@@ -461,12 +461,12 @@ statgl_plot <- function(
 
     // Update live if the OS/browser theme toggles
     if (window.matchMedia) {
-      var mql = window.matchMedia('(prefers-color-scheme: dark)');
-      if (mql.addEventListener) mql.addEventListener('change', applyOutline);
+      var mql = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mql.addEventListener) mql.addEventListener("change", applyOutline);
       else if (mql.addListener) mql.addListener(applyOutline); // Safari fallback
     }
   }
-  "
+  '
   )
 
   chart
