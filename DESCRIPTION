@@ -16,8 +16,12 @@ Imports:
     httr,
     jsonlite,
     kableExtra,
+    quarto,
     readr,
     rjstat,
     rlang,
     rmarkdown,
-    tibble
+    tibble,
+    tidyr,
+    tidyselect,
+    withr
