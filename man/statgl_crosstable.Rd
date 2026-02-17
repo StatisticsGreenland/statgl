@@ -20,7 +20,6 @@ statgl_crosstable(
   .replace_0s = FALSE,
   .replace_nas = FALSE,
   .first_col_width = NULL,
-  .bottom_rule = TRUE,
   .as_html = FALSE
 )
 }
@@ -81,11 +80,11 @@ with \code{"."}), or a single character string used as a custom replacement for
 \item{.first_col_width}{Optional CSS width passed to
 \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}
 
-\item{.bottom_rule}{Logical; if \code{TRUE} (default), a thicker bottom border is
-added to the last data row.}
-
 \item{.as_html}{Logical; if \code{FALSE} (default) returns a \code{kableExtra} table
 object; if \code{TRUE}, returns a single HTML string.}
+
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), a thicker bottom border is
+added to the last data row.}
 }
 \value{
 If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.

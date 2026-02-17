@@ -1,0 +1,11 @@
+Binding: pub_project
+Title: Ny side til stat.gl
+OpenFiles: *.qmd
+
+Parameter: pub_title
+Widget: TextInput
+Label: Titel
+
+Parameter: pub_subtitle
+Widget: TextInput
+Label: Undertitel
