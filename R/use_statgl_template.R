@@ -36,7 +36,7 @@ use_statgl_template <- function(title, subtitle) {
 
   source_file <- file.path(
     ext_path,
-    "statgl_template.qmd"
+    "statgl_template"
   )
 
   if (!file.exists(source_file)) {
