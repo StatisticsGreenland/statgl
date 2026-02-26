@@ -1,0 +1,4 @@
+Name: Create .qmd file from .docx
+Description: Choose a .docx and convert it to a .qmd next to it (media fixed, header extracted, PUBLSLUT removed).
+Binding: word_to_qmd_addin
+Interactive: true
