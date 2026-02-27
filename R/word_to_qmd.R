@@ -21,9 +21,16 @@ word_to_qmd <- function(in_file) {
   if (ext != "docx") {
     stop("Please choose a .docx file")
   }
+  if (!file.exists(in_file)) {
+    stop("Input file not found: ", in_file)
+  }
 
   out_dir <- dirname(in_file)
+
+  # Keep original stem for human-facing title, even if it contains æøå
   stem_raw <- tools::file_path_sans_ext(basename(in_file))
+
+  # Safe stem for filenames/paths we create
   stem_safe <- make_safe_stem(stem_raw)
 
   out_file <- file.path(out_dir, paste0(stem_safe, ".qmd"))
@@ -42,6 +49,12 @@ word_to_qmd <- function(in_file) {
     stop("Quarto CLI not found on PATH.")
   }
 
+  # Pandoc can fail to open files with æøå in path on some systems.
+  safe <- pandoc_safe_docx_copy(in_file)
+  on.exit(unlink(safe$tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  in_file_for_pandoc <- safe$tmp_docx
+
+  # Run pandoc from output directory so extracted-media links are relative
   old_wd <- getwd()
   on.exit(setwd(old_wd), add = TRUE)
   setwd(out_dir)
@@ -50,7 +63,7 @@ word_to_qmd <- function(in_file) {
     quarto_bin,
     c(
       "pandoc",
-      shQuote(in_file),
+      shQuote(in_file_for_pandoc),
       "-t",
       "markdown",
       "-o",
@@ -287,4 +300,17 @@ convert_emf_to_png <- function(media_dir) {
   }
 
   invisible(emf_files)
+}
+
+pandoc_safe_docx_copy <- function(in_file) {
+  tmp_dir <- tempfile("statgl_docx_")
+  dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
+
+  tmp_docx <- file.path(tmp_dir, "input.docx")
+  ok <- file.copy(in_file, tmp_docx, overwrite = TRUE)
+  if (!ok) {
+    stop("Could not copy input docx to temp dir: ", tmp_docx)
+  }
+
+  list(tmp_dir = tmp_dir, tmp_docx = tmp_docx)
 }
