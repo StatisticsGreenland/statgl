@@ -1,4 +1,4 @@
-# statgl (development version)
+# statgl 0.5.1
 
 ## Maintenance
 
