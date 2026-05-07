@@ -1,5 +1,33 @@
 # statgl (development version)
 
+## Bug fixes
+
+* `statgl_url()` no longer constructs malformed search IDs from
+  mixed-case input — `statgl_url("bexst1")` now behaves the same as
+  `statgl_url("BEXST1")`.
+
+## New behavior
+
+* `statgl_url()` validates its inputs explicitly and reports the URL
+  searched when a table is not found.
+* The `lang` argument of `statgl_url()` now defaults to `NULL` (was
+  previously detected via `missing()`); existing callers that omit
+  `lang` are unaffected.
+
+## New features
+
+* `statgl_api_url()` is now exported. It returns the active API base URL
+  (which can be overridden globally with
+  `options(statgl.api_url = "...")`) and is the default for the
+  `api_url` argument of `statgl_search()`, `statgl_url()`, and friends.
+
+## Internal
+
+* New internal helpers `is_greenland_api()` and `infer_lang_from_url()`
+  in `R/utils.R` — used by `statgl_url()` and ready for reuse by other
+  callers that need to branch on whether they're talking to the
+  Statistics Greenland API.
+
 # statgl 0.5.1
 
 ## Maintenance
