@@ -7,13 +7,22 @@
 statgl_meta(url, returnclass = "tibble")
 }
 \arguments{
-\item{url}{API url of Statbank table}
+\item{url}{API url of Statbank table, or a table ID.}
 
-\item{returnclass}{Returns list with tibble if \code{"tibble"} (default).}
+\item{returnclass}{One of \code{"tibble"} (default), \code{"px_list"}, or any other
+value to return the raw parsed API response.}
+}
+\value{
+When \code{returnclass = "tibble"}, a list with elements \code{title},
+\code{url}, and \code{variables} (a tibble of variable metadata). When
+\code{returnclass = "px_list"}, a named list of PX file metadata fields.
+Otherwise, the raw API response as parsed by \code{\link[httr:content]{httr::content()}}.
 }
 \description{
 Retrieves metadata from pxweb API url.
 }
 \examples{
+\donttest{
 statgl_meta(statgl_url("BEXSTA"))
+}
 }

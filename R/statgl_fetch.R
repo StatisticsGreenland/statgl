@@ -1,41 +1,48 @@
 #' Retrieve statbank data via URL
 #'
 #' @description
-#' This funtion retrive data from statistics banks via URL and hidden quiestions in a qury
+#' Retrieves data from a PXWeb statbank by table ID or URL, with selection
+#' filters passed through `...`.
 #'
-#' The variables is displayed by their text_code by default. This can be changed
-#' by setting .col_code = TRUE.
+#' Variable values are displayed by their text labels by default. Set
+#' `.val_code = TRUE` to display the underlying codes instead, and
+#' `.col_code = TRUE` to use codes as column names.
 #'
-#' The selection of variables should be given using their code values and not text values.
-#'
-#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
+#' Selections in `...` should be supplied using the variable's *code* values
+#' (not text labels). Use [statgl_meta()] to inspect available codes before
+#' calling [statgl_fetch()].
 #'
 #' @details
-#' The variables is displayed by their text_code by default. This can be changed
-#' by setting .col_code = TRUE.
+#' Eliminable variables not specified in `...` are collapsed to the API's
+#' default selection. Pass `.eliminate_rest = FALSE` to retrieve all values
+#' for unspecified eliminable variables.
 #'
-#' The selection of variables should be given using their code values and not text values.
-#'
-#' These can be found by using the statgl_meta() function prior to using statgl_fetch()
+#' If the API rejects a query as too large (HTTP 403), [statgl_fetch()]
+#' falls back to chunked retrieval automatically.
 #'
 #' @param x API url of statbank matrix
 #' @param ... Selection queries for variables
 #' @param .col_code \code{TRUE}/\code{FALSE}. Display column names as code.
 #' @param .val_code \code{TRUE}/\code{FALSE}. Display cell values as code.
-#' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).
-#' @param url deprecated
+#' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrieve
+#'   all selections for remaining variables in the table (experimental).
+#' @param .chunk_size Optional integer. Reserved for future use; controls
+#'   the chunk size when a query exceeds the API's cell limit.
+#' @param url Deprecated. Use `x` instead.
 #'
-#' @return return a dataframe / tibble with the data from the registry
+#' @return A [tibble][tibble::tibble-package] with one column per variable
+#'   plus a `value` column.
 #' @export
 #'
 #' @importFrom utils URLencode
 #'
 #'
 #' @examples
-#' statgl_fetch("BEXSTA")
+#' \donttest{
 #' statgl_fetch("BEXSTA")
 #' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+#' }
 statgl_fetch <- function(
   x,
   ...,
@@ -182,9 +189,11 @@ build_query <- function(vls, .format = "json-stat") {
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' statgl_fetch(statgl_url("BEXST1"), time = px_top(5))
 #' statgl_fetch(statgl_url("BEXST1"), time = px_all("*5"))
 #' statgl_fetch(statgl_url("BEXST1"), age = px_agg("5-year.agg", "-4", "5-9", "10-14"))
+#' }
 px_top <- function(top_n = 1) {
   structure(top_n, .px_filter = "Top")
 }
@@ -377,7 +386,7 @@ fetch_with_chunking <- function(x, vls, chunk_size, col_code, val_code) {
 
 find_time_variable <- function(variables) {
   # Look for common time variable names
-  time_patterns <- c("time", "år", "year", "periode", "period")
+  time_patterns <- c("time", "\u00e5r", "year", "periode", "period")
 
   for (var in variables) {
     if (

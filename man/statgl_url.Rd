@@ -4,11 +4,7 @@
 \alias{statgl_url}
 \title{Retrieve URL of px table}
 \usage{
-statgl_url(
-  table_id,
-  lang,
-  api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/"
-)
+statgl_url(table_id, lang, api_url = statgl_api_url())
 }
 \arguments{
 \item{table_id}{ID of table}
@@ -17,11 +13,16 @@ statgl_url(
 
 \item{api_url}{URL of Statbank API. Defaults to Statistics Greenland API URL}
 }
+\value{
+A character string with the full PXWeb API URL for the table.
+}
 \description{
 Searches the statbank for a table of a given ID, and returns the URL if
 found. Only works on PX tables from Statistics Greenland.
 }
 \examples{
+\donttest{
 statgl_url("BEXST1")
 statgl_url("BEXST1", lang = "kl")
+}
 }

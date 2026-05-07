@@ -12,6 +12,8 @@
 #'
 #' @return Invisibly returns the path to the created `.qmd` file.
 #'
+#' @importFrom utils file.edit
+#'
 #' @export
 use_statgl_template <- function(title, subtitle) {
   if (missing(title)) {

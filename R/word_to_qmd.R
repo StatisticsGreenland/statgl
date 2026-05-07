@@ -4,6 +4,8 @@
 #' extracts media, fixes absolute image paths, converts EMF to PNG when possible,
 #' extracts header metadata to YAML, and removes PUBLSLUT.
 #'
+#' @return Invisibly returns the path to the created `.qmd` file, or `NULL`
+#'   if no file was selected. Called for its side effects.
 #' @export
 word_to_qmd_addin <- function() {
   in_file <- file.choose()
@@ -14,7 +16,11 @@ word_to_qmd_addin <- function() {
 }
 
 #' Convert a Word document to Quarto (QMD) (non-interactive)
+#'
 #' @param in_file Path to .docx
+#'
+#' @return Invisibly returns the path to the created `.qmd` file. Called
+#'   for its side effects.
 #' @export
 word_to_qmd <- function(in_file) {
   ext <- tolower(tools::file_ext(in_file))
@@ -27,7 +33,8 @@ word_to_qmd <- function(in_file) {
 
   out_dir <- dirname(in_file)
 
-  # Keep original stem for human-facing title, even if it contains æøå
+  # Keep original stem for human-facing title, even if it contains
+  # non-ASCII characters such as Danish/Greenlandic letters.
   stem_raw <- tools::file_path_sans_ext(basename(in_file))
 
   # Safe stem for filenames/paths we create
@@ -49,7 +56,8 @@ word_to_qmd <- function(in_file) {
     stop("Quarto CLI not found on PATH.")
   }
 
-  # Pandoc can fail to open files with æøå in path on some systems.
+  # Pandoc can fail to open files with non-ASCII characters in the path
+  # on some systems, so copy to a temp dir with an ASCII name first.
   safe <- pandoc_safe_docx_copy(in_file)
   on.exit(unlink(safe$tmp_dir, recursive = TRUE, force = TRUE), add = TRUE)
   in_file_for_pandoc <- safe$tmp_docx
@@ -231,7 +239,7 @@ tidy_word_qmd <- function(qmd_path) {
     trimws(x)
   }
   date_idx <- which(grepl(
-    "^\\d{1,2}([./]\\s*|\\.\\s*|/\\.\\s*)[A-Za-zæøåÆØÅ]+\\s+\\d{4}$",
+    "^\\d{1,2}([./]\\s*|\\.\\s*|/\\.\\s*)[A-Za-z\u00e6\u00f8\u00e5\u00c6\u00d8\u00c5]+\\s+\\d{4}$",
     top
   ))[1]
   if (!is.na(date_idx) && !any(grepl("^date:", yaml))) {

@@ -43,8 +43,8 @@
 #'   formatting. Defaults to `","`.
 #' @param locale Optional locale code (`"da"`, `"kl"`, `"en"`, etc.). If
 #'   provided and `big.mark` and `decimal.mark` are not explicitly overridden,
-#'   they are derived from `locale` (`"da"`/`"kl"` → decimal `","`, big mark
-#'   `"."`; other values → decimal `"."`, big mark `","`).
+#'   they are derived from `locale` (`"da"`/`"kl"` -> decimal `","`, big mark
+#'   `"."`; other values -> decimal `"."`, big mark `","`).
 #' @param stacking Optional stacking mode for `"area"`, `"column"` and `"bar"`
 #'   charts. One of `"normal"` or `"percent"`, or `NULL` (no stacking).
 #' @param palette Optional palette specification for the series colours. Either:
@@ -358,7 +358,7 @@ statgl_plot <- function(
           base_pal <- rev(base_pal)
         }
 
-        # Special case: ungrouped column/bar chart → colour *each bar*
+        # Special case: ungrouped column/bar chart -> colour *each bar*
         if (
           !has_group &&
             type %in% c("column", "bar") &&

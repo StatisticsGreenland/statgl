@@ -12,17 +12,21 @@
 #' \code{"tibble"} or \code{"list"}. Defaults to tibble. Returns to default list
 #' from API when list.
 #'
-#' @return
+#' @return When `returnclass = "tibble"` (default), a tibble of matching
+#'   tables and folders. When `returnclass = "list"`, the raw parsed API
+#'   response.
 #' @export
 #'
 #' @importFrom utils URLencode
 #'
 #' @examples
+#' \donttest{
 #' statgl_search("population")
 #' statgl_search("inuit", lang = "kl")
+#' }
 statgl_search <- function(
     query = "", path = "", lang = "en",
-    api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/",
+    api_url = statgl_api_url(),
     returnclass = "tibble"
 ) {
 

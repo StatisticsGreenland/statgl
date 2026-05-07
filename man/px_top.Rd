@@ -38,7 +38,9 @@ Helper functions to make custom filters in pxweb API queries:
 }
 }
 \examples{
+\donttest{
 statgl_fetch(statgl_url("BEXST1"), time = px_top(5))
 statgl_fetch(statgl_url("BEXST1"), time = px_all("*5"))
 statgl_fetch(statgl_url("BEXST1"), age = px_agg("5-year.agg", "-4", "5-9", "10-14"))
+}
 }

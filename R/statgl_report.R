@@ -5,10 +5,13 @@
 #'
 #' This is a development version, and design of the output will change!
 #'
-#' @param output Format of report.
-#' @param ... Additional arguments passed to rmarkdown::html_document
+#' @param output Format of report. One of `"html"`, `"docx"`, or
+#'   `"pretty_html"`.
+#' @param ... Additional arguments passed to the underlying rmarkdown
+#'   output format (e.g. [rmarkdown::html_document()]).
 #'
-#' @return
+#' @return An R Markdown output format object suitable for the `output`
+#'   field of a YAML header.
 #' @export
 #'
 #' @examples
@@ -31,6 +34,13 @@ statgl_report <- function(output = "html", ...){
       ...
     )
   } else if(output == "pretty_html") {
+    if (!requireNamespace("prettydoc", quietly = TRUE)) {
+      stop(
+        "Package 'prettydoc' is required for output = \"pretty_html\". ",
+        "Install it with install.packages(\"prettydoc\").",
+        call. = FALSE
+      )
+    }
     prettydoc::html_pretty(theme = "hpstr", highlight = "github", ...)
   }
 }

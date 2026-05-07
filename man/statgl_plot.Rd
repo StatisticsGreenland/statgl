@@ -80,8 +80,8 @@ formatting. Defaults to \code{","}.}
 
 \item{locale}{Optional locale code (\code{"da"}, \code{"kl"}, \code{"en"}, etc.). If
 provided and \code{big.mark} and \code{decimal.mark} are not explicitly overridden,
-they are derived from \code{locale} (\code{"da"}/\code{"kl"} → decimal \code{","}, big mark
-\code{"."}; other values → decimal \code{"."}, big mark \code{","}).}
+they are derived from \code{locale} (\code{"da"}/\code{"kl"} -> decimal \code{","}, big mark
+\code{"."}; other values -> decimal \code{"."}, big mark \code{","}).}
 
 \item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"} and \code{"bar"}
 charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).}

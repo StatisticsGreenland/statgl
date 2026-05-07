@@ -6,7 +6,7 @@
 #' @param base_family Base font family
 #' @param ...  Parameters to \code{ggplot2::theme}
 #'
-#' @return
+#' @return A `ggplot2` theme object that can be added to a plot.
 #' @export
 #'
 #' @examples

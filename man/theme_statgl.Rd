@@ -13,6 +13,9 @@ theme_statgl(base_size = 12, base_family = NULL, ...)
 
 \item{...}{Parameters to \code{ggplot2::theme}}
 }
+\value{
+A \code{ggplot2} theme object that can be added to a plot.
+}
 \description{
 A ggplot2 theme following design manual of Statistics Greenland.
 }
