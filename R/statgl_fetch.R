@@ -1,37 +1,65 @@
-#' Retrieve statbank data via URL
+#' Retrieve statbank data
 #'
 #' @description
 #' Retrieves data from a PXWeb statbank by table ID or URL, with selection
 #' filters passed through `...`.
 #'
-#' Variable values are displayed by their text labels by default. Set
-#' `.val_code = TRUE` to display the underlying codes instead, and
-#' `.col_code = TRUE` to use codes as column names.
+#' Variable values and column names are displayed by their text labels
+#' by default. The `.val_code` and `.col_code` arguments switch to the
+#' underlying codes - either everywhere (`TRUE`) or on a per-column
+#' basis (a character vector of column names).
 #'
-#' Selections in `...` should be supplied using the variable's *code* values
-#' (not text labels). Use [statgl_meta()] to inspect available codes before
-#' calling [statgl_fetch()].
+#' Selections in `...` should be supplied using the variable's *code*
+#' values (not text labels). Use [statgl_meta()] to inspect available
+#' codes before calling [statgl_fetch()].
 #'
 #' @details
-#' Eliminable variables not specified in `...` are collapsed to the API's
-#' default selection. Pass `.eliminate_rest = FALSE` to retrieve all values
-#' for unspecified eliminable variables.
+#' Eliminable variables not specified in `...` are collapsed to the
+#' API's default selection. Pass `.eliminate_rest = FALSE` to retrieve
+#' all values for unspecified eliminable variables.
 #'
-#' If the API rejects a query as too large (HTTP 403), [statgl_fetch()]
-#' falls back to chunked retrieval automatically.
+#' If the API rejects a query as too large (HTTP 403),
+#' [statgl_fetch()] falls back to chunked retrieval automatically.
 #'
-#' @param x API url of statbank matrix
-#' @param ... Selection queries for variables
-#' @param .col_code \code{TRUE}/\code{FALSE}. Display column names as code.
-#' @param .val_code \code{TRUE}/\code{FALSE}. Display cell values as code.
-#' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE}, retrieve
-#'   all selections for remaining variables in the table (experimental).
-#' @param .chunk_size Optional integer. Reserved for future use; controls
-#'   the chunk size when a query exceeds the API's cell limit.
-#' @param url Deprecated. Use `x` instead.
+#' Use `.dry_run = TRUE` to inspect the resolved URL and JSON body
+#' [statgl_fetch()] would send, without actually issuing the request.
 #'
-#' @return A [tibble][tibble::tibble-package] with one column per variable
-#'   plus a `value` column.
+#' @param x Table ID (e.g. `"BEXSTA"`) or full PXWeb API URL. Table IDs
+#'   are passed through [statgl_url()] (so `.lang` and `.api_url` apply);
+#'   full URLs are taken as-is, except that `.lang` will rewrite the
+#'   `/v<N>/<lang>/` segment in place when supplied.
+#' @param ... Selection queries for variables, named by variable code
+#'   (e.g. `gender = c("M", "K")`, `time = 2010:2020`). Helper
+#'   constructors [px_top()], [px_all()], and [px_agg()] are available
+#'   for non-trivial filters.
+#' @param .col_code Either a logical, or a character vector of variable
+#'   codes. If `TRUE`, all column names are shown as their underlying
+#'   codes; if `FALSE` (default), all column names are the
+#'   human-readable text. If a character vector, only those columns are
+#'   shown as codes; the rest keep their text labels.
+#' @param .val_code Same as `.col_code` but applied to cell *values*
+#'   instead of column names.
+#' @param .eliminate_rest \code{TRUE}/\code{FALSE}. If \code{FALSE},
+#'   retrieve all selections for remaining variables in the table
+#'   (experimental).
+#' @param .lang Optional API language override (one of `"en"`, `"kl"`,
+#'   `"da"` for the Statistics Greenland API). When supplied, takes
+#'   precedence over the language implied by `x`. If `x` is a URL, the
+#'   `/v<N>/<lang>/` segment is rewritten in place; if `x` is a table
+#'   ID, the value is forwarded to [statgl_url()].
+#' @param .api_url Base URL of the PXWeb API. Used only when `x` is a
+#'   table ID (full URLs in `x` are taken at face value). Defaults to
+#'   [statgl_api_url()].
+#' @param .dry_run Logical. If `TRUE`, do not send the request; instead
+#'   return a list with the resolved `url`, the parsed `selections`
+#'   list, and the JSON `body` that would be POSTed. Useful for
+#'   debugging selection issues without burning an API call.
+#' @param url `r lifecycle::badge("deprecated")` Use `x` instead.
+#'
+#' @return Normally a [tibble][tibble::tibble-package] with one column
+#'   per variable plus a `value` column. When `.dry_run = TRUE`, a
+#'   length-3 list (`url`, `selections`, `body`) describing the request
+#'   that would have been sent.
 #' @export
 #'
 #' @importFrom utils URLencode
@@ -41,7 +69,16 @@
 #' \donttest{
 #' statgl_fetch("BEXSTA")
 #' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
+#' statgl_fetch("BEXSTA", .lang = "da")
 #' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+#'
+#' # Inspect the query without sending it.
+#' statgl_fetch(
+#'   "BEXSTA",
+#'   gender = c("M", "K"),
+#'   time = 2010:2020,
+#'   .dry_run = TRUE
+#' )
 #' }
 statgl_fetch <- function(
   x,
@@ -49,28 +86,35 @@ statgl_fetch <- function(
   .col_code = FALSE,
   .val_code = FALSE,
   .eliminate_rest = TRUE,
-  .chunk_size = NULL,
+  .lang = NULL,
+  .api_url = statgl_api_url(),
+  .dry_run = FALSE,
   url = NULL
 ) {
-  # Restore the original URL handling logic
+  # Deprecated `url` argument: error rather than silently substitute.
   if (!is.null(url)) {
-    lifecycle::deprecate_warn("0.2.0", "statgl_fetch(url)", "statgl_fetch(x)")
-    x <- url
+    lifecycle::deprecate_stop(
+      "0.5.2",
+      "statgl_fetch(url)",
+      "statgl_fetch(x)"
+    )
   }
 
-  # Convert table code to URL if needed
+  # Resolve `x` to a full URL.
   if (!grepl("^https?://", x)) {
-    x <- statgl_url(x)
+    # Table ID -> let statgl_url() handle .lang and .api_url.
+    x <- statgl_url(x, lang = .lang, api_url = .api_url)
+  } else if (!is.null(.lang)) {
+    # Full URL with explicit .lang: rewrite the language segment.
+    x <- sub("(/v\\d+/)[^/]+", paste0("\\1", .lang), x)
   }
 
   vls <- rlang::dots_list(...)
 
   # Handle .eliminate_rest = FALSE - build query for all variables
   if (!.eliminate_rest) {
-    # Get metadata and add px_all("*") for eliminable variables not already specified
     meta <- statgl_meta(x, "list")
     for (var in meta$variables) {
-      # Check if variable is eliminable (default selected subset)
       is_eliminable <- if (is.null(var$elimination)) {
         FALSE
       } else if (is.logical(var$elimination)) {
@@ -83,17 +127,27 @@ statgl_fetch <- function(
 
       # For eliminable variables not already specified by user, request all values
       if (is_eliminable && !var$code %in% names(vls)) {
-        # Added the second condition
         vls[[var$code]] <- px_all("*")
       }
     }
   }
 
-  # Try the query first - if it fails with 403, chunk it
+  # Build the query body.
   body <- build_query(vls, .format = "json-stat")
+
+  # Dry run: return the resolved request without sending it.
+  if (isTRUE(.dry_run)) {
+    return(list(
+      url = x,
+      selections = vls,
+      body = body
+    ))
+  }
+
+  # Send the request.
   api_response <- httr::POST(x, body = body)
 
-  # If successful, proceed normally
+  # Success path.
   if (!httr::http_error(api_response)) {
     api_content <- httr::content(api_response, as = "text")
     text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
@@ -101,27 +155,21 @@ statgl_fetch <- function(
     return(process_dataframe(text_df, code_df, .val_code, .col_code))
   }
 
-  # If 403 error, try chunking
+  # 403: try chunking.
   if (httr::status_code(api_response) == 403) {
     message("Query too large, attempting to chunk...")
     return(chunk_large_query(x, vls, .col_code, .val_code))
   }
 
-  # For other HTTP errors
-  if (httr::http_error(api_response)) {
-    api_content <- httr::content(api_response, as = "text")
-    cat("The received content:\n")
-    cat(api_content, "\n")
-    cat("is not json compatible. This is likely due to a bad query.\n")
-    cat("Investigate correct column codes with statgl_meta()\n")
-    stop("API request failed with status ", httr::status_code(api_response))
-  }
-
-  # Normal processing fallback
+  # Other HTTP errors: surface status, body, and a hint in one stop().
   api_content <- httr::content(api_response, as = "text")
-  text_df <- rjstat::fromJSONstat(api_content, naming = "label")[[1]]
-  code_df <- rjstat::fromJSONstat(api_content, naming = "id")[[1]]
-  process_dataframe(text_df, code_df, .val_code, .col_code)
+  stop(
+    "API request failed with status ",
+    httr::status_code(api_response), ".\n",
+    "Response body: ", api_content, "\n",
+    "Hint: check column codes with statgl_meta(\"", x, "\").",
+    call. = FALSE
+  )
 }
 
 # Query builder ----------------------------------------------------------------

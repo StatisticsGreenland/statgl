@@ -6,20 +6,50 @@
   mixed-case input — `statgl_url("bexst1")` now behaves the same as
   `statgl_url("BEXST1")`.
 
-## New behavior
-
-* `statgl_url()` validates its inputs explicitly and reports the URL
-  searched when a table is not found.
-* The `lang` argument of `statgl_url()` now defaults to `NULL` (was
-  previously detected via `missing()`); existing callers that omit
-  `lang` are unaffected.
-
 ## New features
 
 * `statgl_api_url()` is now exported. It returns the active API base URL
   (which can be overridden globally with
   `options(statgl.api_url = "...")`) and is the default for the
   `api_url` argument of `statgl_search()`, `statgl_url()`, and friends.
+* `statgl_fetch()` gains three new arguments:
+  - `.lang` — override the API language directly. When `x` is a table
+    ID, forwarded to `statgl_url()`; when `x` is a URL, the
+    `/v<N>/<lang>/` segment is rewritten in place. Takes precedence
+    over the language implied by the table ID.
+  - `.api_url` — override the PXWeb base URL when `x` is a table ID.
+    Defaults to `statgl_api_url()`.
+  - `.dry_run` — return the resolved URL, parsed selections, and JSON
+    body that would be POSTed, without sending the request. Useful for
+    debugging selection issues.
+
+## Behavior changes
+
+* `statgl_url()` validates its inputs explicitly and reports the URL
+  searched when a table is not found.
+* The `lang` argument of `statgl_url()` now defaults to `NULL` (was
+  previously detected via `missing()`); existing callers that omit
+  `lang` are unaffected.
+* `statgl_fetch()` now produces a single, cleaner error on non-403 HTTP
+  failures (status, response body, and a `statgl_meta()` hint folded
+  into one `stop()`); previously it printed several lines via `cat()`
+  before erroring.
+
+## Deprecations and removals
+
+* The `url` argument of `statgl_fetch()` (deprecated since 0.2.0) now
+  errors via `lifecycle::deprecate_stop()` instead of warning. Use `x`
+  instead. The argument will be removed entirely in a future release.
+* The `.chunk_size` argument of `statgl_fetch()` was a non-functional
+  placeholder and has been removed. Chunking continues to happen
+  automatically when a query exceeds the API's cell limit.
+
+## Documentation
+
+* `statgl_fetch()`'s docs now describe `x` as accepting either a table
+  ID or a URL, and document the previously-undocumented behavior of
+  `.col_code` and `.val_code` accepting a character vector of column
+  names (not just a logical).
 
 ## Internal
 

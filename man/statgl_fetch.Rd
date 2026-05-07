@@ -2,7 +2,7 @@
 % Please edit documentation in R/statgl_fetch.R
 \name{statgl_fetch}
 \alias{statgl_fetch}
-\title{Retrieve statbank data via URL}
+\title{Retrieve statbank data}
 \usage{
 statgl_fetch(
   x,
@@ -10,55 +10,96 @@ statgl_fetch(
   .col_code = FALSE,
   .val_code = FALSE,
   .eliminate_rest = TRUE,
-  .chunk_size = NULL,
+  .lang = NULL,
+  .api_url = statgl_api_url(),
+  .dry_run = FALSE,
   url = NULL
 )
 }
 \arguments{
-\item{x}{API url of statbank matrix}
+\item{x}{Table ID (e.g. \code{"BEXSTA"}) or full PXWeb API URL. Table IDs
+are passed through \code{\link[=statgl_url]{statgl_url()}} (so \code{.lang} and \code{.api_url} apply);
+full URLs are taken as-is, except that \code{.lang} will rewrite the
+\verb{/v<N>/<lang>/} segment in place when supplied.}
 
-\item{...}{Selection queries for variables}
+\item{...}{Selection queries for variables, named by variable code
+(e.g. \code{gender = c("M", "K")}, \code{time = 2010:2020}). Helper
+constructors \code{\link[=px_top]{px_top()}}, \code{\link[=px_all]{px_all()}}, and \code{\link[=px_agg]{px_agg()}} are available
+for non-trivial filters.}
 
-\item{.col_code}{\code{TRUE}/\code{FALSE}. Display column names as code.}
+\item{.col_code}{Either a logical, or a character vector of variable
+codes. If \code{TRUE}, all column names are shown as their underlying
+codes; if \code{FALSE} (default), all column names are the
+human-readable text. If a character vector, only those columns are
+shown as codes; the rest keep their text labels.}
 
-\item{.val_code}{\code{TRUE}/\code{FALSE}. Display cell values as code.}
+\item{.val_code}{Same as \code{.col_code} but applied to cell \emph{values}
+instead of column names.}
 
-\item{.eliminate_rest}{\code{TRUE}/\code{FALSE}. If \code{FALSE}, retrieve
-all selections for remaining variables in the table (experimental).}
+\item{.eliminate_rest}{\code{TRUE}/\code{FALSE}. If \code{FALSE},
+retrieve all selections for remaining variables in the table
+(experimental).}
 
-\item{.chunk_size}{Optional integer. Reserved for future use; controls
-the chunk size when a query exceeds the API's cell limit.}
+\item{.lang}{Optional API language override (one of \code{"en"}, \code{"kl"},
+\code{"da"} for the Statistics Greenland API). When supplied, takes
+precedence over the language implied by \code{x}. If \code{x} is a URL, the
+\verb{/v<N>/<lang>/} segment is rewritten in place; if \code{x} is a table
+ID, the value is forwarded to \code{\link[=statgl_url]{statgl_url()}}.}
 
-\item{url}{Deprecated. Use \code{x} instead.}
+\item{.api_url}{Base URL of the PXWeb API. Used only when \code{x} is a
+table ID (full URLs in \code{x} are taken at face value). Defaults to
+\code{\link[=statgl_api_url]{statgl_api_url()}}.}
+
+\item{.dry_run}{Logical. If \code{TRUE}, do not send the request; instead
+return a list with the resolved \code{url}, the parsed \code{selections}
+list, and the JSON \code{body} that would be POSTed. Useful for
+debugging selection issues without burning an API call.}
+
+\item{url}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{x} instead.}
 }
 \value{
-A \link[tibble:tibble-package]{tibble} with one column per variable
-plus a \code{value} column.
+Normally a \link[tibble:tibble-package]{tibble} with one column
+per variable plus a \code{value} column. When \code{.dry_run = TRUE}, a
+length-3 list (\code{url}, \code{selections}, \code{body}) describing the request
+that would have been sent.
 }
 \description{
 Retrieves data from a PXWeb statbank by table ID or URL, with selection
 filters passed through \code{...}.
 
-Variable values are displayed by their text labels by default. Set
-\code{.val_code = TRUE} to display the underlying codes instead, and
-\code{.col_code = TRUE} to use codes as column names.
+Variable values and column names are displayed by their text labels
+by default. The \code{.val_code} and \code{.col_code} arguments switch to the
+underlying codes - either everywhere (\code{TRUE}) or on a per-column
+basis (a character vector of column names).
 
-Selections in \code{...} should be supplied using the variable's \emph{code} values
-(not text labels). Use \code{\link[=statgl_meta]{statgl_meta()}} to inspect available codes before
-calling \code{\link[=statgl_fetch]{statgl_fetch()}}.
+Selections in \code{...} should be supplied using the variable's \emph{code}
+values (not text labels). Use \code{\link[=statgl_meta]{statgl_meta()}} to inspect available
+codes before calling \code{\link[=statgl_fetch]{statgl_fetch()}}.
 }
 \details{
-Eliminable variables not specified in \code{...} are collapsed to the API's
-default selection. Pass \code{.eliminate_rest = FALSE} to retrieve all values
-for unspecified eliminable variables.
+Eliminable variables not specified in \code{...} are collapsed to the
+API's default selection. Pass \code{.eliminate_rest = FALSE} to retrieve
+all values for unspecified eliminable variables.
 
-If the API rejects a query as too large (HTTP 403), \code{\link[=statgl_fetch]{statgl_fetch()}}
-falls back to chunked retrieval automatically.
+If the API rejects a query as too large (HTTP 403),
+\code{\link[=statgl_fetch]{statgl_fetch()}} falls back to chunked retrieval automatically.
+
+Use \code{.dry_run = TRUE} to inspect the resolved URL and JSON body
+\code{\link[=statgl_fetch]{statgl_fetch()}} would send, without actually issuing the request.
 }
 \examples{
 \donttest{
 statgl_fetch("BEXSTA")
 statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
+statgl_fetch("BEXSTA", .lang = "da")
 statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+
+# Inspect the query without sending it.
+statgl_fetch(
+  "BEXSTA",
+  gender = c("M", "K"),
+  time = 2010:2020,
+  .dry_run = TRUE
+)
 }
 }
