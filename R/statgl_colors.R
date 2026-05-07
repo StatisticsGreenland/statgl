@@ -7,7 +7,7 @@
 #' @param reverse Generate reverse palette if \code{TRUE}
 #' @param ... Parameters to \code{discrete_scale} or \code{scale_color_gradientn}
 #'
-#' @return
+#' @return A `ggplot2` scale object that can be added to a plot.
 #' @export
 #'
 #' @examples
@@ -50,7 +50,7 @@ scale_color_statgl <-
 #' @param reverse Generate reverse palette if \code{TRUE}
 #' @param ... Parameters to \code{discrete_scale} or \code{scale_color_gradientn}
 #'
-#' @return
+#' @return A `ggplot2` scale object that can be added to a plot.
 #' @export
 #'
 #' @examples

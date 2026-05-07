@@ -23,34 +23,42 @@ statgl_fetch(
 
 \item{.val_code}{\code{TRUE}/\code{FALSE}. Display cell values as code.}
 
-\item{.eliminate_rest}{\code{TRUE}/\code{FALSE}. If \code{FALSE}, retrive all selections for remaining variables in table (experimental).}
+\item{.eliminate_rest}{\code{TRUE}/\code{FALSE}. If \code{FALSE}, retrieve
+all selections for remaining variables in the table (experimental).}
 
-\item{url}{deprecated}
+\item{.chunk_size}{Optional integer. Reserved for future use; controls
+the chunk size when a query exceeds the API's cell limit.}
+
+\item{url}{Deprecated. Use \code{x} instead.}
 }
 \value{
-return a dataframe / tibble with the data from the registry
+A \link[tibble:tibble-package]{tibble} with one column per variable
+plus a \code{value} column.
 }
 \description{
-This funtion retrive data from statistics banks via URL and hidden quiestions in a qury
+Retrieves data from a PXWeb statbank by table ID or URL, with selection
+filters passed through \code{...}.
 
-The variables is displayed by their text_code by default. This can be changed
-by setting .col_code = TRUE.
+Variable values are displayed by their text labels by default. Set
+\code{.val_code = TRUE} to display the underlying codes instead, and
+\code{.col_code = TRUE} to use codes as column names.
 
-The selection of variables should be given using their code values and not text values.
-
-These can be found by using the statgl_meta() function prior to using statgl_fetch()
+Selections in \code{...} should be supplied using the variable's \emph{code} values
+(not text labels). Use \code{\link[=statgl_meta]{statgl_meta()}} to inspect available codes before
+calling \code{\link[=statgl_fetch]{statgl_fetch()}}.
 }
 \details{
-The variables is displayed by their text_code by default. This can be changed
-by setting .col_code = TRUE.
+Eliminable variables not specified in \code{...} are collapsed to the API's
+default selection. Pass \code{.eliminate_rest = FALSE} to retrieve all values
+for unspecified eliminable variables.
 
-The selection of variables should be given using their code values and not text values.
-
-These can be found by using the statgl_meta() function prior to using statgl_fetch()
+If the API rejects a query as too large (HTTP 403), \code{\link[=statgl_fetch]{statgl_fetch()}}
+falls back to chunked retrieval automatically.
 }
 \examples{
-statgl_fetch("BEXSTA")
+\donttest{
 statgl_fetch("BEXSTA")
 statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+}
 }

@@ -15,6 +15,9 @@ scale_fill_statgl(palette = "main", discrete = TRUE, reverse = FALSE, ...)
 
 \item{...}{Parameters to \code{discrete_scale} or \code{scale_color_gradientn}}
 }
+\value{
+A \code{ggplot2} scale object that can be added to a plot.
+}
 \description{
 Generates a fill scale compatible with ggplot2. Uses colors defined by the GS design manual.
 }

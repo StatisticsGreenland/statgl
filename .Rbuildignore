@@ -1,3 +1,10 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.Rmd$
+^\.github$
+^logo$
+^_pkgdown\.yml$
+^docs$
+^cran-comments\.md$
+^\.DS_Store$
+^\.Rhistory$

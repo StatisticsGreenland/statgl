@@ -8,7 +8,7 @@ statgl_search(
   query = "",
   path = "",
   lang = "en",
-  api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/",
+  api_url = statgl_api_url(),
   returnclass = "tibble"
 )
 }
@@ -26,11 +26,18 @@ statgl_search(
 \code{"tibble"} or \code{"list"}. Defaults to tibble. Returns to default list
 from API when list.}
 }
+\value{
+When \code{returnclass = "tibble"} (default), a tibble of matching
+tables and folders. When \code{returnclass = "list"}, the raw parsed API
+response.
+}
 \description{
 Do a search of Statistics Greenland API. Will work for other PXWEB APIs, when
 custom URL is provided in \code{api_url}
 }
 \examples{
+\donttest{
 statgl_search("population")
 statgl_search("inuit", lang = "kl")
+}
 }

@@ -26,8 +26,8 @@ statgl_crosstable(
 \arguments{
 \item{df}{A data frame.}
 
-\item{...}{Grouping columns for the \strong{column headers} (e.g. \code{køn},
-\code{hændelsestype}). The first group becomes the top-level header; remaining
+\item{...}{Grouping columns for the \strong{column headers} (e.g. \code{koen},
+\code{haendelsestype}). The first group becomes the top-level header; remaining
 groups form sub-headers.}
 
 \item{.value}{Column used for the cell values (default \code{value}).}
@@ -70,7 +70,7 @@ column-header combination contains one of these values is removed from the
 output. Values referring to non-column variables are silently ignored.}
 
 \item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
-literal \code{"0"} with \code{"–"}), or a single character string used as a custom
+literal \code{"0"} with \code{"-"}), or a single character string used as a custom
 replacement for \code{"0"}.}
 
 \item{.replace_nas}{Either \code{FALSE} (leave \code{NA} as is), \code{TRUE} (replace \code{NA}
@@ -82,9 +82,6 @@ with \code{"."}), or a single character string used as a custom replacement for
 
 \item{.as_html}{Logical; if \code{FALSE} (default) returns a \code{kableExtra} table
 object; if \code{TRUE}, returns a single HTML string.}
-
-\item{.bottom_rule}{Logical; if \code{TRUE} (default), a thicker bottom border is
-added to the last data row.}
 }
 \value{
 If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.
@@ -98,7 +95,7 @@ values, suitable for HTML display via \strong{kableExtra}.
 \details{
 The columns in \code{...} define the column layout: the first becomes the
 top-level header, and any additional columns form sub-headers. One or more
-remaining columns are used as row “stub” variables and shown on the left. A
+remaining columns are used as row "stub" variables and shown on the left. A
 row-group variable can be promoted to group headers (using
 \code{\link[kableExtra:group_rows]{kableExtra::group_rows()}}) so several rows share a common label.
 }

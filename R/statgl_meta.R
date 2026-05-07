@@ -2,14 +2,20 @@
 #'
 #' Retrieves metadata from pxweb API url.
 #'
-#' @param url API url of Statbank table
-#' @param returnclass Returns list with tibble if \code{"tibble"} (default).
+#' @param url API url of Statbank table, or a table ID.
+#' @param returnclass One of `"tibble"` (default), `"px_list"`, or any other
+#'   value to return the raw parsed API response.
 #'
-#' @return
+#' @return When `returnclass = "tibble"`, a list with elements `title`,
+#'   `url`, and `variables` (a tibble of variable metadata). When
+#'   `returnclass = "px_list"`, a named list of PX file metadata fields.
+#'   Otherwise, the raw API response as parsed by [httr::content()].
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' statgl_meta(statgl_url("BEXSTA"))
+#' }
 statgl_meta <- function(url, returnclass = "tibble") {
 
   if(returnclass == "tibble") {

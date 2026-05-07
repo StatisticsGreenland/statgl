@@ -7,16 +7,18 @@
 #' @param lang API language of query. Defaults to \code{"en"}
 #' @param api_url URL of Statbank API. Defaults to Statistics Greenland API URL
 #'
-#' @return
+#' @return A character string with the full PXWeb API URL for the table.
 #' @export
 #'
 #' @examples
+#' \donttest{
 #' statgl_url("BEXST1")
 #' statgl_url("BEXST1", lang = "kl")
+#' }
 statgl_url <-
   function(
     table_id, lang,
-    api_url = "https://bank.stat.gl:443/api/v1/en/Greenland/"
+    api_url = statgl_api_url()
   ) {
 
     # Should extend the search with .px

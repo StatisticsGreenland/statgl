@@ -248,13 +248,13 @@ statgl_table <- function(
 #'
 #' The columns in `...` define the column layout: the first becomes the
 #' top-level header, and any additional columns form sub-headers. One or more
-#' remaining columns are used as row “stub” variables and shown on the left. A
+#' remaining columns are used as row "stub" variables and shown on the left. A
 #' row-group variable can be promoted to group headers (using
 #' [kableExtra::group_rows()]) so several rows share a common label.
 #'
 #' @param df A data frame.
-#' @param ... Grouping columns for the **column headers** (e.g. `køn`,
-#'   `hændelsestype`). The first group becomes the top-level header; remaining
+#' @param ... Grouping columns for the **column headers** (e.g. `koen`,
+#'   `haendelsestype`). The first group becomes the top-level header; remaining
 #'   groups form sub-headers.
 #' @param .value Column used for the cell values (default `value`).
 #' @param .row Tidyselect specification of one or more **row stub** columns.
@@ -284,15 +284,13 @@ statgl_table <- function(
 #'   column-header combination contains one of these values is removed from the
 #'   output. Values referring to non-column variables are silently ignored.
 #' @param .replace_0s Either `FALSE` (no special handling), `TRUE` (replace
-#'   literal `"0"` with `"–"`), or a single character string used as a custom
+#'   literal `"0"` with `"-"`), or a single character string used as a custom
 #'   replacement for `"0"`.
 #' @param .replace_nas Either `FALSE` (leave `NA` as is), `TRUE` (replace `NA`
 #'   with `"."`), or a single character string used as a custom replacement for
 #'   `NA`.
 #' @param .first_col_width Optional CSS width passed to
 #'   [kableExtra::column_spec()] for the first column (e.g. `"8em"`).
-#' @param .bottom_rule Logical; if `TRUE` (default), a thicker bottom border is
-#'   added to the last data row.
 #' @param .as_html Logical; if `FALSE` (default) returns a `kableExtra` table
 #'   object; if `TRUE`, returns a single HTML string.
 #'
@@ -302,12 +300,13 @@ statgl_table <- function(
 #'
 #' If `.as_html = TRUE`, a length-1 character vector containing HTML.
 #'
-#' @importFrom dplyr arrange distinct mutate select across all_of count
+#' @importFrom dplyr arrange distinct mutate select across all_of count %>%
 #' @importFrom tidyr unite pivot_wider
 #' @importFrom tidyselect eval_select
 #' @importFrom rlang enquos enquo sym f_rhs eval_tidy is_formula quo_name
 #' @importFrom kableExtra kable kable_styling add_header_above group_rows
 #'   column_spec row_spec
+#' @importFrom utils head
 #'
 #' @export
 statgl_crosstable <- function(
@@ -372,7 +371,7 @@ statgl_crosstable <- function(
   # ---- 2) Replace zeros and NAs in df (before pivot/formatting) ----
   zero_repl <- NULL
   if (isTRUE(.replace_0s)) {
-    zero_repl <- "–"
+    zero_repl <- "\u2013"
   } else if (is.character(.replace_0s) && length(.replace_0s) == 1L) {
     zero_repl <- .replace_0s
   }
@@ -412,7 +411,7 @@ statgl_crosstable <- function(
 
   df_wide <- df %>%
     dplyr::arrange(!!!row_quos, !!primary_group, !!!rest_groups) %>%
-    tidyr::unite("col_key", !!!groups, sep = " – ", remove = FALSE) %>%
+    tidyr::unite("col_key", !!!groups, sep = " \u2013 ", remove = FALSE) %>%
     dplyr::select(!!!row_quos, col_key, !!value) %>%
     tidyr::pivot_wider(
       id_cols = dplyr::all_of(row_names),
@@ -446,14 +445,14 @@ statgl_crosstable <- function(
   wide_cols <- setdiff(orig_cols, row_names)
 
   # labels shown in the second header row (e.g. "I alt", "Kvinder", ...)
-  display_labels <- sub("^[^–]+\\s*–\\s*", "", wide_cols)
+  display_labels <- sub("^[^\u2013]+\\s*\u2013\\s*", "", wide_cols)
 
   # build a combo data frame describing each column group combination,
   # aligned to wide_cols
   combo_df <- df %>%
     dplyr::distinct(!!!groups) %>%
     dplyr::arrange(!!primary_group, !!!rest_groups) %>%
-    tidyr::unite("col_key", !!!groups, sep = " – ", remove = FALSE)
+    tidyr::unite("col_key", !!!groups, sep = " \u2013 ", remove = FALSE)
 
   combo_df <- combo_df[match(wide_cols, combo_df$col_key), ]
 

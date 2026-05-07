@@ -7,9 +7,15 @@
 statgl_report(output = "html", ...)
 }
 \arguments{
-\item{output}{Format of report.}
+\item{output}{Format of report. One of \code{"html"}, \code{"docx"}, or
+\code{"pretty_html"}.}
 
-\item{...}{Additional arguments passed to rmarkdown::html_document}
+\item{...}{Additional arguments passed to the underlying rmarkdown
+output format (e.g. \code{\link[rmarkdown:html_document]{rmarkdown::html_document()}}).}
+}
+\value{
+An R Markdown output format object suitable for the \code{output}
+field of a YAML header.
 }
 \description{
 Wrapper function for rmarkdown::render(), to render html pages with statgl
