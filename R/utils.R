@@ -49,7 +49,29 @@ extract_substring <- function(input_string, pattern) {
 }
 
 
-utils::globalVariables(c("values", "valueTexts", "code", "text", "elimination", "time"))
+utils::globalVariables(c(
+  "values", "valueTexts", "code", "text", "elimination", "time",
+  # `col_key` is the column tidyr::unite() creates inside statgl_crosstable()
+  "col_key",
+  # `value` is the default `y` argument in statgl_plot() (NSE)
+  "value"
+))
+
+# Default base URL for Statistics Greenland's PXWeb statbank API.
+# Centralised so it lives in one place; functions that accept an `api_url`
+# argument should use `statgl_api_url()` as their default.
+#
+# Override globally with `options(statgl.api_url = "...")`, or per-call via
+# the `api_url` argument.
+.statgl_default_api_url <- "https://bank.stat.gl/api/v1/en/Greenland/"
+
+statgl_api_url <- function() {
+  getOption("statgl.api_url", default = .statgl_default_api_url)
+}
+
+# Compatibility helper used in older R: rlang and base R 4.4+ both provide
+# `%||%`, but defining it locally avoids depending on either.
+`%||%` <- function(x, y) if (is.null(x)) y else x
 
 
 
