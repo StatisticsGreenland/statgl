@@ -2,8 +2,6 @@
 
 ## Maintenance
 
-* `DESCRIPTION` now wraps multiple authors in `c()` and lists Emil Malta as
-  the sole maintainer (`cre`); Alexander Krabbe is listed as `aut`.
 * Added `lifecycle`, `purrr`, `htmlwidgets`, and `janitor` to `Imports`
   (previously used but undeclared).
 * Moved `prettydoc`, `magick`, and `rstudioapi` to `Suggests` and added
@@ -13,14 +11,6 @@
   per-call via the existing `api_url` argument.
 * Added a `testthat` scaffold and a basic GitHub Actions `R-CMD-check`
   workflow.
-* Documentation: filled in empty `@return` tags for exported functions,
-  fixed typos in `statgl_fetch()`'s docs, and wrapped live-API examples
-  in `\donttest{}` so `R CMD check` passes on offline build hosts.
-* `man/` is stale relative to the current set of exports — run
-  `devtools::document()` to regenerate `.Rd` files for `statgl_fetch()`,
-  `statgl_table()`, `statgl_crosstable()`, `statgl_plot()`, `px_agg()`,
-  `px_all()`, `use_statgl_template()`, `word_to_qmd()`, and
-  `word_to_qmd_addin()`.
 
 # statgl 0.5.0.9002
 
