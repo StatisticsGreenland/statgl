@@ -24,7 +24,6 @@ Imports:
     jsonlite,
     kableExtra,
     lifecycle,
-    purrr,
     quarto,
     readr,
     rjstat,

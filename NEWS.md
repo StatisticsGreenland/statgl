@@ -57,6 +57,25 @@
   in `R/utils.R` — used by `statgl_url()` and ready for reuse by other
   callers that need to branch on whether they're talking to the
   Statistics Greenland API.
+* `R/statgl_fetch.R` cleaned up: removed ~350 lines of unreachable
+  chunking helpers (`get_api_limits`, `estimate_query_size`,
+  `get_selection_cardinality`, `glob2rx`, `calculate_chunk_size`,
+  `fetch_with_chunking`, `fetch_large_dataset`, `find_time_variable`,
+  `get_variable_values`); extracted `is_eliminable()`,
+  `expand_eliminables()`, `resolve_url()`, `fetch_jsonstat()`,
+  `pick_chunk_variable()`, and `try_chunk()` so behavior lives in one
+  testable place each; collapsed `build_query()`'s filter detection to
+  a single `attr(...) %||% "item"`; threaded the `meta` list through
+  to `chunk_large_query()` so we no longer make two `statgl_meta()`
+  round-trips when both `.eliminate_rest = FALSE` and chunking
+  trigger.
+* `chunk_large_query()` no longer POSTs the first chunk twice. It now
+  probes with one request and reuses that result on success; on 403 it
+  halves the chunk size and retries from the top, surfacing other HTTP
+  errors directly instead of treating them as "still too large."
+* Dropped `purrr` from `Imports` — its only use (`purrr::map_dfr` in
+  the unreachable `fetch_with_chunking()`) went away with the dead-code
+  cleanup.
 
 # statgl 0.5.1
 

@@ -38,15 +38,6 @@ test_that("generate_subfolders builds nested 2-char path segments", {
   expect_equal(generate_subfolders("BE0120"), "BE/BE01/BE0120")
 })
 
-test_that("glob2rx anchors patterns and translates wildcards", {
-  glob2rx <- statgl:::glob2rx
-  expect_equal(glob2rx("*"), "^.*$")
-  expect_equal(glob2rx("*0"), "^.*0$")
-  expect_equal(glob2rx("a?c"), "^a.c$")
-  # literal dots are escaped
-  expect_equal(glob2rx("file.csv"), "^file\\.csv$")
-})
-
 test_that("is_greenland_api recognises Statistics Greenland URLs", {
   is_greenland_api <- statgl:::is_greenland_api
   expect_true(is_greenland_api("https://bank.stat.gl/api/v1/en/Greenland/"))
