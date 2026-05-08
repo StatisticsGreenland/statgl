@@ -24,8 +24,11 @@ full URLs are taken as-is, except that \code{.lang} will rewrite the
 
 \item{...}{Selection queries for variables, named by variable code
 (e.g. \code{gender = c("M", "K")}, \code{time = 2010:2020}). Helper
-constructors \code{\link[=px_top]{px_top()}}, \code{\link[=px_all]{px_all()}}, and \code{\link[=px_agg]{px_agg()}} are available
-for non-trivial filters.}
+constructors \code{\link[=px_top]{px_top()}} (or its short alias \code{\link[=top]{top()}}), \code{\link[=px_all]{px_all()}},
+and \code{\link[=px_agg]{px_agg()}} are available for non-trivial filters. As a
+shorthand, a length-1 character scalar containing \code{*} or \verb{?} is
+auto-wrapped via \code{\link[=px_all]{px_all()}} - so \code{time = "*0"} works the same as
+\code{time = px_all("*0")}.}
 
 \item{.col_code}{Either a logical, or a character vector of variable
 codes. If \code{TRUE}, all column names are shown as their underlying
@@ -92,7 +95,13 @@ Use \code{.dry_run = TRUE} to inspect the resolved URL and JSON body
 statgl_fetch("BEXSTA")
 statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 statgl_fetch("BEXSTA", .lang = "da")
-statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+
+# Wildcard auto-wrap and the top() alias:
+statgl_fetch("BEXSTA", gender = "*", time = top(3))
+statgl_fetch("BEXSTA", age = "*0")
+
+# Equivalent fully-explicit form:
+statgl_fetch("BEXSTA", gender = px_all(), age = px_all("*0"), time = px_top(3))
 
 # Inspect the query without sending it.
 statgl_fetch(

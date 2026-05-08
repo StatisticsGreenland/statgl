@@ -30,8 +30,11 @@
 #'   `/v<N>/<lang>/` segment in place when supplied.
 #' @param ... Selection queries for variables, named by variable code
 #'   (e.g. `gender = c("M", "K")`, `time = 2010:2020`). Helper
-#'   constructors [px_top()], [px_all()], and [px_agg()] are available
-#'   for non-trivial filters.
+#'   constructors [px_top()] (or its short alias [top()]), [px_all()],
+#'   and [px_agg()] are available for non-trivial filters. As a
+#'   shorthand, a length-1 character scalar containing `*` or `?` is
+#'   auto-wrapped via [px_all()] - so `time = "*0"` works the same as
+#'   `time = px_all("*0")`.
 #' @param .col_code Either a logical, or a character vector of variable
 #'   codes. If `TRUE`, all column names are shown as their underlying
 #'   codes; if `FALSE` (default), all column names are the
@@ -69,7 +72,13 @@
 #' statgl_fetch("BEXSTA")
 #' statgl_fetch("BEXSTA", gender = c("M", "K"), time = 2010:2020)
 #' statgl_fetch("BEXSTA", .lang = "da")
-#' statgl_fetch(statgl_url("BEXSTA"), time = px_top(1), age = px_all("*0"))
+#'
+#' # Wildcard auto-wrap and the top() alias:
+#' statgl_fetch("BEXSTA", gender = "*", time = top(3))
+#' statgl_fetch("BEXSTA", age = "*0")
+#'
+#' # Equivalent fully-explicit form:
+#' statgl_fetch("BEXSTA", gender = px_all(), age = px_all("*0"), time = px_top(3))
 #'
 #' # Inspect the query without sending it.
 #' statgl_fetch(
@@ -201,9 +210,16 @@ build_query <- function(vls, .format = "json-stat") {
   out <- vector(mode = "list", length = length(vls))
 
   for (i in seq_along(vls)) {
-    # Allow `var = "*"` as a shorthand for `var = px_all("*")`.
-    if (identical(vls[[i]], "*")) {
-      vls[[i]] <- px_all("*")
+    # Allow `var = "*"`, `var = "*0"`, `var = "AB?C"`, etc. as a shorthand
+    # for `var = px_all(...)`. Triggers only when the user passed a plain
+    # character scalar containing a glob wildcard; explicit px_*() helpers
+    # already carry a .px_filter attribute and are left alone.
+    v <- vls[[i]]
+    if (is.null(attr(v, ".px_filter")) &&
+        is.character(v) &&
+        length(v) == 1L &&
+        grepl("[*?]", v)) {
+      vls[[i]] <- px_all(v)
     }
 
     # px_top()/px_all()/px_agg() attach a .px_filter attribute. Anything
@@ -231,9 +247,14 @@ build_query <- function(vls, .format = "json-stat") {
 #'
 #' Helper functions to make custom filters in pxweb API queries:
 #'
-#' * [px_top()]: API returns the the top n values provided
-#' * [px_all()]: API returns all values, matching a wildcard pattern
-#' * [px_agg()]; Instructs API to use aggregations, and which values to select.
+#' * [px_top()] / [top()]: API returns the top n values provided
+#' * [px_all()]: API returns all values, matching a wildcard pattern.
+#'   A length-1 character scalar containing `*` or `?` passed directly
+#'   in a [statgl_fetch()] selection is auto-wrapped via [px_all()],
+#'   so `time = "*0"` is shorthand for `time = px_all("*0")`.
+#' * [px_agg()]: Instructs API to use aggregations, and which values to select.
+#'
+#' [top()] is a short alias for [px_top()].
 #'
 #' @param top_n Numeric. Requests the first n values of a variable, or the last
 #'   n values if variable is time.
@@ -243,7 +264,8 @@ build_query <- function(vls, .format = "json-stat") {
 #' @param agg_file Aggregation file used to aggregate values in pxweb API
 #' @param ... Values selected from aggregation
 #'
-#' @return grep like search result
+#' @return A length-1 (or longer) value with a `.px_filter` attribute,
+#'   suitable for use as a selection in [statgl_fetch()].
 #' @export
 #'
 #' @examples
@@ -255,6 +277,10 @@ build_query <- function(vls, .format = "json-stat") {
 px_top <- function(top_n = 1) {
   structure(top_n, .px_filter = "Top")
 }
+
+#' @rdname px_top
+#' @export
+top <- function(top_n = 1) px_top(top_n)
 
 #' @rdname px_top
 #' @export

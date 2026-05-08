@@ -12,6 +12,16 @@
   (which can be overridden globally with
   `options(statgl.api_url = "...")`) and is the default for the
   `api_url` argument of `statgl_search()`, `statgl_url()`, and friends.
+* `statgl_fetch()` now auto-wraps a length-1 character scalar containing
+  `*` or `?` as `px_all()`. Both `gender = "*"` and `time = "*0"` now
+  work without explicit `px_all()` calls — multi-element character
+  vectors are still treated as item filters. Explicit `px_all()` /
+  `px_top()` / `px_agg()` calls are unaffected.
+* New `top()` exported as a short alias for `px_top()`. Lets you write
+  `statgl_fetch("BEXSTA", time = top(3))` instead of
+  `statgl_fetch("BEXSTA", time = px_top(3))`. `px_top()` is unchanged
+  and remains the canonical name; both are documented on the same Rd
+  page.
 * `statgl_fetch()` gains three new arguments:
   - `.lang` — override the API language directly. When `x` is a table
     ID, forwarded to `statgl_url()`; when `x` is a URL, the
