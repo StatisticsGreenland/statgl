@@ -36,6 +36,59 @@ test_that(".lang preserves the rest of the URL", {
   )
 })
 
+test_that("character scalars containing glob wildcards auto-wrap as px_all()", {
+  url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
+
+  out <- statgl_fetch(url, time = "*0", .dry_run = TRUE)
+  expect_match(out$body, '"filter":"all"', fixed = TRUE)
+  expect_match(out$body, '"values":\\["\\*0"\\]')
+
+  # Bare "*" still works (was the only previous special case)
+  out2 <- statgl_fetch(url, gender = "*", .dry_run = TRUE)
+  expect_match(out2$body, '"filter":"all"', fixed = TRUE)
+  expect_match(out2$body, '"values":\\["\\*"\\]')
+
+  # `?` (single-char glob) is also auto-wrapped
+  out3 <- statgl_fetch(url, code = "AB?C", .dry_run = TRUE)
+  expect_match(out3$body, '"filter":"all"', fixed = TRUE)
+  expect_match(out3$body, '"values":\\["AB\\?C"\\]')
+})
+
+test_that("plain character values without wildcards stay as item filter", {
+  url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
+  out <- statgl_fetch(url, gender = c("M", "K"), .dry_run = TRUE)
+  expect_match(out$body, '"filter":"item"', fixed = TRUE)
+  expect_no_match(out$body, '"filter":"all"', fixed = TRUE)
+})
+
+test_that("multi-element character vectors are not auto-wrapped", {
+  # A vector like c("*0", "*5") is ambiguous (PXWeb's `all` filter takes
+  # a single pattern), so we leave it as-is rather than guessing.
+  url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
+  out <- statgl_fetch(url, time = c("*0", "*5"), .dry_run = TRUE)
+  expect_match(out$body, '"filter":"item"', fixed = TRUE)
+})
+
+test_that("explicit px_all() / px_top() / px_agg() are preserved", {
+  url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
+
+  out <- statgl_fetch(url, time = px_all("*0"), .dry_run = TRUE)
+  expect_match(out$body, '"filter":"all"', fixed = TRUE)
+
+  out <- statgl_fetch(url, time = px_top(3), .dry_run = TRUE)
+  expect_match(out$body, '"filter":"Top"', fixed = TRUE)
+})
+
+test_that("top() is a transparent alias for px_top()", {
+  expect_identical(top(),  px_top())
+  expect_identical(top(5), px_top(5))
+
+  url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
+  out_top    <- statgl_fetch(url, time = top(3),    .dry_run = TRUE)
+  out_px_top <- statgl_fetch(url, time = px_top(3), .dry_run = TRUE)
+  expect_identical(out_top$body, out_px_top$body)
+})
+
 test_that(".dry_run on an empty selection produces an empty query body", {
   url <- "https://bank.stat.gl/api/v1/en/Greenland/BE/BE01/BEXSTA.px"
   out <- statgl_fetch(url, .dry_run = TRUE)
