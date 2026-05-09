@@ -16,6 +16,7 @@ statgl_crosstable(
   .caption = NULL,
   .year_col = NULL,
   .bold_rows = NULL,
+  .drop = NULL,
   .secondary = NULL,
   .replace_0s = FALSE,
   .replace_nas = FALSE,
@@ -62,12 +63,17 @@ should be converted to character to avoid formatting like \verb{2,024}.}
 table; it must return a logical vector.
 }}
 
-\item{.secondary}{Optional named list specifying which \strong{column groups}
-should be treated as secondary and dropped from the table. Each element
-should be a vector of values for a grouping variable used in \code{...}, e.g.
+\item{.drop}{Optional named list specifying which \strong{column groups}
+should be dropped from the table. Each element should be a vector of
+values for a grouping variable used in \code{...}, e.g.
 \code{list(gender = "Total", citydistrict = "Total")}. Any column whose
-column-header combination contains one of these values is removed from the
-output. Values referring to non-column variables are silently ignored.}
+column-header combination contains one of these values is removed from
+the output. A warning is issued if a name doesn't match a known
+column-group dimension or if values match no rows, so typos and
+value-mismatches surface clearly.}
+
+\item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.drop}
+instead. Same shape and semantics.}
 
 \item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
 literal \code{"0"} with \code{"-"}), or a single character string used as a custom

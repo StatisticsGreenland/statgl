@@ -277,12 +277,16 @@ statgl_table <- function(
 #'   * a character vector matching values in the primary stub column, or
 #'   * a one-sided formula (e.g. `~ tid == max(tid)`) evaluated on the wide
 #'     table; it must return a logical vector.
-#' @param .secondary Optional named list specifying which **column groups**
-#'   should be treated as secondary and dropped from the table. Each element
-#'   should be a vector of values for a grouping variable used in `...`, e.g.
+#' @param .drop Optional named list specifying which **column groups**
+#'   should be dropped from the table. Each element should be a vector of
+#'   values for a grouping variable used in `...`, e.g.
 #'   `list(gender = "Total", citydistrict = "Total")`. Any column whose
-#'   column-header combination contains one of these values is removed from the
-#'   output. Values referring to non-column variables are silently ignored.
+#'   column-header combination contains one of these values is removed from
+#'   the output. A warning is issued if a name doesn't match a known
+#'   column-group dimension or if values match no rows, so typos and
+#'   value-mismatches surface clearly.
+#' @param .secondary `r lifecycle::badge("deprecated")` Use `.drop`
+#'   instead. Same shape and semantics.
 #' @param .replace_0s Either `FALSE` (no special handling), `TRUE` (replace
 #'   literal `"0"` with `"-"`), or a single character string used as a custom
 #'   replacement for `"0"`.
@@ -321,7 +325,8 @@ statgl_crosstable <- function(
   .caption = NULL,
   .year_col = NULL, # tidyselect spec
   .bold_rows = NULL, # numeric / character / formula
-  .secondary = NULL, # list(dim_name = values_to_hide)
+  .drop = NULL, # list(dim_name = values_to_drop)
+  .secondary = NULL, # deprecated: use .drop
   .replace_0s = FALSE, # FALSE / TRUE / "custom"
   .replace_nas = FALSE, # FALSE / TRUE / "custom"
   .first_col_width = NULL,
@@ -456,16 +461,15 @@ statgl_crosstable <- function(
 
   combo_df <- combo_df[match(wide_cols, combo_df$col_key), ]
 
-  # ---- 6a) Apply .secondary: drop superfluous column groups --------
-  if (!is.null(.secondary) && length(wide_cols)) {
-    sec_mask <- rep(FALSE, nrow(combo_df))
+  # ---- 6a) Apply .drop: drop column groups by dimension value ------
+  .drop <- resolve_drop(.drop, .secondary)
+  if (!is.null(.drop) && length(wide_cols)) {
+    validate_drop(.drop, combo_df)
 
-    for (nm in names(.secondary)) {
-      if (!nm %in% names(combo_df)) {
-        next
-      }
-      vals <- .secondary[[nm]]
-      sec_mask <- sec_mask | combo_df[[nm]] %in% vals
+    sec_mask <- rep(FALSE, nrow(combo_df))
+    for (nm in names(.drop)) {
+      if (!nm %in% names(combo_df)) next
+      sec_mask <- sec_mask | combo_df[[nm]] %in% .drop[[nm]]
     }
 
     keep_mask <- !sec_mask
@@ -602,4 +606,67 @@ statgl_crosstable <- function(
   }
 
   kb
+}
+
+# Internal helpers -------------------------------------------------------------
+
+# Choose between the new `.drop` argument and the deprecated `.secondary`
+# alias. If `.secondary` is supplied, emit a deprecation warning and fall
+# back to it only when `.drop` is unset; if both are supplied, `.drop`
+# wins (and the user still gets the deprecation message about
+# `.secondary`).
+resolve_drop <- function(drop, secondary) {
+  if (!is.null(secondary)) {
+    lifecycle::deprecate_warn(
+      "0.5.2",
+      "statgl_crosstable(.secondary = )",
+      "statgl_crosstable(.drop = )"
+    )
+    if (is.null(drop)) drop <- secondary
+  }
+  drop
+}
+
+# Surface the three silent-failure modes of value-based column filtering:
+# wrong shape (not a named list), wrong dimension name (typo / not in
+# `...`), and wrong values (no match against the actual column values).
+# Each produces a warning that names what was wrong and what's available
+# instead, so the user can self-correct without reading the docs again.
+validate_drop <- function(drop, combo_df) {
+  if (!is.list(drop) ||
+      is.null(names(drop)) ||
+      any(!nzchar(names(drop)))) {
+    warning(
+      "`.drop` must be a named list of `column_group = values_to_drop`. ",
+      "Got: ", paste(deparse(drop), collapse = " "),
+      call. = FALSE
+    )
+    return(invisible())
+  }
+
+  dim_names <- setdiff(names(combo_df), "col_key")
+
+  for (nm in names(drop)) {
+    if (!nm %in% dim_names) {
+      warning(
+        "`.drop$", nm, "` is not a column-group dimension. Available: ",
+        paste(dim_names, collapse = ", "), ".",
+        call. = FALSE
+      )
+      next
+    }
+    vals <- drop[[nm]]
+    column_values <- combo_df[[nm]]
+    if (!any(vals %in% column_values)) {
+      warning(
+        "`.drop$", nm, "` values c(",
+        paste0('"', vals, '"', collapse = ", "),
+        ") matched no columns. Available: ",
+        paste0('"', unique(as.character(column_values)), '"', collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+  }
+  invisible()
 }

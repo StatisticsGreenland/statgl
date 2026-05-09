@@ -53,6 +53,18 @@
 * The `.chunk_size` argument of `statgl_fetch()` was a non-functional
   placeholder and has been removed. Chunking continues to happen
   automatically when a query exceeds the API's cell limit.
+* `statgl_crosstable()`'s `.secondary` argument is renamed to `.drop`
+  to clarify that it filters data (not styling). `.secondary` still
+  works for now but emits a `lifecycle::deprecate_warn`. If both are
+  supplied, `.drop` wins.
+
+## Behavior changes (continued)
+
+* `statgl_crosstable()`'s value-based column filter (`.drop`) now
+  warns clearly when the input is malformed (not a named list), names
+  a dimension that isn't a column group, or supplies values that match
+  no rows. Previously these silently produced an unfiltered table —
+  the source of recurring "`.secondary` doesn't work" reports.
 
 ## Documentation
 
