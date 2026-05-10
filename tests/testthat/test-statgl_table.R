@@ -111,6 +111,76 @@ test_that(".drop wins when both .drop and .secondary are supplied", {
   expect_match(out, ">M</div>")
 })
 
+# ---- .replace_0s / .replace_nas unified shape -------------------------------
+
+test_that("resolve_replace_0s handles FALSE / NULL / TRUE / string", {
+  resolve_replace_0s <- statgl:::resolve_replace_0s
+  expect_null(resolve_replace_0s(FALSE))
+  expect_null(resolve_replace_0s(NULL))
+  expect_equal(resolve_replace_0s(TRUE), "–")
+  expect_equal(resolve_replace_0s("-"), "-")
+  expect_equal(resolve_replace_0s("[-]{}"), "[-]{}")
+})
+
+test_that("resolve_replace_0s warns on bad shapes", {
+  resolve_replace_0s <- statgl:::resolve_replace_0s
+  expect_warning(out <- resolve_replace_0s(123),         "single character string")
+  expect_null(out)
+  expect_warning(out <- resolve_replace_0s(c("a", "b")), "single character string")
+  expect_null(out)
+  expect_warning(out <- resolve_replace_0s(NA),          "single character string")
+  expect_null(out)
+})
+
+test_that("resolve_replace_nas handles NULL / FALSE / string", {
+  resolve_replace_nas <- statgl:::resolve_replace_nas
+  expect_null(resolve_replace_nas(NULL))
+  expect_null(resolve_replace_nas(FALSE))
+  expect_equal(resolve_replace_nas("."), ".")
+  expect_equal(resolve_replace_nas(".."), "..")
+})
+
+test_that("resolve_replace_nas deprecates TRUE -> '.'", {
+  resolve_replace_nas <- statgl:::resolve_replace_nas
+  expect_warning(out <- resolve_replace_nas(TRUE), "deprecated")
+  expect_equal(out, ".")
+})
+
+test_that("resolve_replace_nas warns on bad shapes", {
+  resolve_replace_nas <- statgl:::resolve_replace_nas
+  expect_warning(out <- resolve_replace_nas(123),         "NULL or a single character string")
+  expect_null(out)
+  expect_warning(out <- resolve_replace_nas(c("a", "b")), "NULL or a single character string")
+  expect_null(out)
+})
+
+# End-to-end: confirm both functions consume the helpers the same way.
+
+test_that("statgl_table replaces 0s with en-dash on .replace_0s = TRUE", {
+  df <- data.frame(label = c("a", "b"), value = c(0, 5))
+  out <- statgl_table(df, .replace_0s = TRUE, .as_html = TRUE)
+  expect_match(out, "–", fixed = TRUE)
+})
+
+test_that("statgl_table accepts a custom .replace_0s string", {
+  df <- data.frame(label = c("a", "b"), value = c(0, 5))
+  out <- statgl_table(df, .replace_0s = "[-]{}", .as_html = TRUE)
+  expect_match(out, "[-]{}", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .replace_nas = TRUE warns and uses '.'", {
+  df <- make_long_df()
+  df$value[1] <- NA_integer_
+  expect_warning(
+    out <- statgl_crosstable(
+      df, gender,
+      .replace_nas = TRUE,
+      .as_html = TRUE
+    ),
+    "deprecated"
+  )
+})
+
 # ---- Helper unit tests (offline, no kable rendering) -------------------------
 
 test_that("validate_drop is silent on well-formed input", {

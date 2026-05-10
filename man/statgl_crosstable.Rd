@@ -19,7 +19,7 @@ statgl_crosstable(
   .drop = NULL,
   .secondary = NULL,
   .replace_0s = FALSE,
-  .replace_nas = FALSE,
+  .replace_nas = NULL,
   .first_col_width = NULL,
   .as_html = FALSE
 )
@@ -75,13 +75,14 @@ value-mismatches surface clearly.}
 \item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.drop}
 instead. Same shape and semantics.}
 
-\item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
-literal \code{"0"} with \code{"-"}), or a single character string used as a custom
-replacement for \code{"0"}.}
+\item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
+\code{0} with an en-dash), or a single character string used as a custom
+replacement.}
 
-\item{.replace_nas}{Either \code{FALSE} (leave \code{NA} as is), \code{TRUE} (replace \code{NA}
-with \code{"."}), or a single character string used as a custom replacement for
-\code{NA}.}
+\item{.replace_nas}{\code{NULL} (default; no replacement) or a single
+character string used as the replacement for \code{NA} (e.g. \code{"."}).
+\code{TRUE} is accepted as a deprecated alias for \code{"."} and emits a
+warning.}
 
 \item{.first_col_width}{Optional CSS width passed to
 \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}

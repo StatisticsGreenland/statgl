@@ -44,11 +44,13 @@ grouped row banners. The column is removed from the printed table.}
 \item{.year_col}{Optional column that should be converted to character
 before formatting (e.g., time variables).}
 
-\item{.replace_0s}{Logical; if \code{TRUE}, zeroes are replaced with \code{"[-]{}"}
-to match Statistics Greenland table styling.}
+\item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
+\code{0} with an en-dash), or a single character string used as a custom
+replacement (e.g. \code{"[-]{}"} for the Statistics Greenland Quarto
+shortcode).}
 
-\item{.replace_nas}{Optional string to replace \code{NA} values in the table.
-Defaults to no replacement.}
+\item{.replace_nas}{\code{NULL} (default; no replacement) or a single
+character string used as the replacement for \code{NA} (e.g. \code{".."}).}
 
 \item{.first_col_width}{Optional CSS width (e.g. \code{"12em"}) applied to the
 first column via \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}}.}

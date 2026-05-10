@@ -65,6 +65,19 @@
   a dimension that isn't a column group, or supplies values that match
   no rows. Previously these silently produced an unfiltered table —
   the source of recurring "`.secondary` doesn't work" reports.
+* `statgl_table()` and `statgl_crosstable()` now share the same shape
+  for `.replace_0s` and `.replace_nas`:
+  - `.replace_0s`: `FALSE` (default; no replacement), `TRUE` (replace
+    with en-dash), or a single string used as a custom replacement.
+  - `.replace_nas`: `NULL` (default; no replacement) or a single
+    string used as a custom replacement (e.g. `".."`).
+* `.replace_0s = TRUE` in `statgl_table()` now produces an en-dash
+  (was `"[-]{}"`). To keep the Statistics Greenland Quarto-shortcode
+  behavior, pass `.replace_0s = "[-]{}"` explicitly.
+* `.replace_nas` default in `statgl_crosstable()` changed from
+  `FALSE` to `NULL`. `FALSE` is still accepted as a no-op alias
+  (silent), and `.replace_nas = TRUE` is now deprecated with a
+  warning — pass `.replace_nas = "."` to keep the previous behavior.
 
 ## Documentation
 

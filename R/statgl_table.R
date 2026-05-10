@@ -19,10 +19,12 @@
 #'   `.row_label` in [statgl_crosstable()]).
 #' @param .year_col Optional column that should be converted to character
 #'   before formatting (e.g., time variables).
-#' @param .replace_0s Logical; if `TRUE`, zeroes are replaced with `"[-]{}"`
-#'   to match Statistics Greenland table styling.
-#' @param .replace_nas Optional string to replace `NA` values in the table.
-#'   Defaults to no replacement.
+#' @param .replace_0s `FALSE` (default; no replacement), `TRUE` (replace
+#'   `0` with an en-dash), or a single character string used as a custom
+#'   replacement (e.g. `"[-]{}"` for the Statistics Greenland Quarto
+#'   shortcode).
+#' @param .replace_nas `NULL` (default; no replacement) or a single
+#'   character string used as the replacement for `NA` (e.g. `".."`).
 #' @param .first_col_width Optional CSS width (e.g. `"12em"`) applied to the
 #'   first column via [kableExtra::column_spec()].
 #' @param .bottom_rule Logical; if `TRUE`, draws a thick bottom border on the
@@ -95,10 +97,11 @@ statgl_table <- function(
   }
 
   # --- replace 0s -----------------------------------------------------------
-  if (isTRUE(.replace_0s)) {
+  zero_repl <- resolve_replace_0s(.replace_0s)
+  if (!is.null(zero_repl)) {
     df[] <- lapply(df, function(x) {
       x_chr <- trimws(as.character(x))
-      x_chr[x_chr == "0"] <- "[-]{}"
+      x_chr[x_chr == "0"] <- zero_repl
       x_chr
     })
   }
@@ -120,15 +123,16 @@ statgl_table <- function(
   )
 
   # --- replace NAs in table + group labels ---------------------------------
-  if (!is.null(.replace_nas)) {
+  na_repl <- resolve_replace_nas(.replace_nas)
+  if (!is.null(na_repl)) {
     df[] <- lapply(df, function(x) {
       x_chr <- as.character(x)
-      x_chr[is.na(x)] <- .replace_nas
+      x_chr[is.na(x)] <- na_repl
       x_chr
     })
     if (!is.null(row_group_vec)) {
       rg_chr <- as.character(row_group_vec)
-      rg_chr[is.na(row_group_vec)] <- .replace_nas
+      rg_chr[is.na(row_group_vec)] <- na_repl
       row_group_vec <- rg_chr
     }
   }
@@ -287,12 +291,13 @@ statgl_table <- function(
 #'   value-mismatches surface clearly.
 #' @param .secondary `r lifecycle::badge("deprecated")` Use `.drop`
 #'   instead. Same shape and semantics.
-#' @param .replace_0s Either `FALSE` (no special handling), `TRUE` (replace
-#'   literal `"0"` with `"-"`), or a single character string used as a custom
-#'   replacement for `"0"`.
-#' @param .replace_nas Either `FALSE` (leave `NA` as is), `TRUE` (replace `NA`
-#'   with `"."`), or a single character string used as a custom replacement for
-#'   `NA`.
+#' @param .replace_0s `FALSE` (default; no replacement), `TRUE` (replace
+#'   `0` with an en-dash), or a single character string used as a custom
+#'   replacement.
+#' @param .replace_nas `NULL` (default; no replacement) or a single
+#'   character string used as the replacement for `NA` (e.g. `"."`).
+#'   `TRUE` is accepted as a deprecated alias for `"."` and emits a
+#'   warning.
 #' @param .first_col_width Optional CSS width passed to
 #'   [kableExtra::column_spec()] for the first column (e.g. `"8em"`).
 #' @param .as_html Logical; if `FALSE` (default) returns a `kableExtra` table
@@ -327,8 +332,8 @@ statgl_crosstable <- function(
   .bold_rows = NULL, # numeric / character / formula
   .drop = NULL, # list(dim_name = values_to_drop)
   .secondary = NULL, # deprecated: use .drop
-  .replace_0s = FALSE, # FALSE / TRUE / "custom"
-  .replace_nas = FALSE, # FALSE / TRUE / "custom"
+  .replace_0s = FALSE, # FALSE / TRUE (en-dash) / custom string
+  .replace_nas = NULL, # NULL / custom string (TRUE deprecated)
   .first_col_width = NULL,
   .as_html = FALSE
 ) {
@@ -374,12 +379,7 @@ statgl_crosstable <- function(
   primary_row_name <- row_names[1]
 
   # ---- 2) Replace zeros and NAs in df (before pivot/formatting) ----
-  zero_repl <- NULL
-  if (isTRUE(.replace_0s)) {
-    zero_repl <- "\u2013"
-  } else if (is.character(.replace_0s) && length(.replace_0s) == 1L) {
-    zero_repl <- .replace_0s
-  }
+  zero_repl <- resolve_replace_0s(.replace_0s)
   if (!is.null(zero_repl)) {
     df[] <- lapply(df, function(x) {
       x_chr <- trimws(as.character(x))
@@ -388,12 +388,7 @@ statgl_crosstable <- function(
     })
   }
 
-  na_repl <- NULL
-  if (isTRUE(.replace_nas)) {
-    na_repl <- "."
-  } else if (is.character(.replace_nas) && length(.replace_nas) == 1L) {
-    na_repl <- .replace_nas
-  }
+  na_repl <- resolve_replace_nas(.replace_nas)
   if (!is.null(na_repl)) {
     df[] <- lapply(df, function(x) {
       x_chr <- as.character(x)
@@ -669,4 +664,42 @@ validate_drop <- function(drop, combo_df) {
     }
   }
   invisible()
+}
+
+# Resolve `.replace_0s` to either NULL (no replacement) or a single
+# character string. `FALSE`/`NULL` -> no replacement, `TRUE` -> en-dash
+# (U+2013), single-string passthrough. Warns on bad shapes.
+resolve_replace_0s <- function(x) {
+  if (isTRUE(x)) return("\u2013")
+  if (isFALSE(x) || is.null(x)) return(NULL)
+  if (is.character(x) && length(x) == 1L && !is.na(x)) return(x)
+  warning(
+    "`.replace_0s` should be FALSE/TRUE or a single character string. ",
+    "Got: ", paste(deparse(x), collapse = " "),
+    call. = FALSE
+  )
+  NULL
+}
+
+# Resolve `.replace_nas` to either NULL (no replacement) or a single
+# character string. `NULL`/`FALSE` -> no replacement, single-string
+# passthrough. `TRUE` is a deprecated alias for `"."`. Warns on bad
+# shapes and on the deprecated TRUE value.
+resolve_replace_nas <- function(x) {
+  if (isTRUE(x)) {
+    warning(
+      "`.replace_nas = TRUE` is deprecated; pass `.replace_nas = \".\"` ",
+      "explicitly to keep the same behavior. (TRUE was treated as \".\".)",
+      call. = FALSE
+    )
+    return(".")
+  }
+  if (isFALSE(x) || is.null(x)) return(NULL)
+  if (is.character(x) && length(x) == 1L && !is.na(x)) return(x)
+  warning(
+    "`.replace_nas` should be NULL or a single character string. ",
+    "Got: ", paste(deparse(x), collapse = " "),
+    call. = FALSE
+  )
+  NULL
 }
