@@ -65,6 +65,12 @@
   a dimension that isn't a column group, or supplies values that match
   no rows. Previously these silently produced an unfiltered table —
   the source of recurring "`.secondary` doesn't work" reports.
+* `statgl_crosstable()` now errors up-front if the column referenced by
+  `.value` doesn't exist in `df`, listing the available columns. The
+  default `.value = value` matches the convention from
+  `statgl_fetch()`, but data frames without a `value` column
+  (e.g. `ggplot2::mpg`) previously produced a confusing dplyr-internal
+  error about quosures.
 * `statgl_table()` and `statgl_crosstable()` now share the same shape
   for `.replace_0s` and `.replace_nas`:
   - `.replace_0s`: `FALSE` (default; no replacement), `TRUE` (replace

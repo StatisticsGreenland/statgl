@@ -349,11 +349,21 @@ statgl_crosstable <- function(
     )
   }
   value <- rlang::enquo(.value)
+  value_name <- rlang::quo_name(value)
+
+  if (!value_name %in% names(df)) {
+    stop(
+      "Column `", value_name, "` not found in `df`. ",
+      "Pass `.value = <column>` to choose the cell-value column. ",
+      "Available columns: ",
+      paste(names(df), collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
 
   # ---- 1) Determine row columns (can be 1 or many) -----------------
   if (missing(.row) || is.null(.row)) {
     group_names <- vapply(groups, rlang::quo_name, character(1))
-    value_name <- rlang::quo_name(value)
     row_names <- setdiff(names(df), c(group_names, value_name))
   } else {
     row_idx <- tidyselect::eval_select(rlang::enquo(.row), df)

@@ -181,6 +181,29 @@ test_that("statgl_crosstable .replace_nas = TRUE warns and uses '.'", {
   )
 })
 
+# ---- .value validation ------------------------------------------------------
+
+test_that("statgl_crosstable errors clearly when `.value` column is missing", {
+  df <- data.frame(a = c("x", "y"), b = c("p", "q"))  # no `value` column
+  expect_error(
+    statgl_crosstable(df, a),
+    "Column `value` not found",
+    fixed = TRUE
+  )
+})
+
+test_that(".value error names the missing column and lists what is available", {
+  df <- data.frame(a = "x", b = "y", c = 1)
+  err <- tryCatch(statgl_crosstable(df, a, .value = nope), error = identity)
+  expect_s3_class(err, "simpleError")
+  expect_match(conditionMessage(err), "Column `nope` not found", fixed = TRUE)
+  expect_match(conditionMessage(err), "a, b, c",                fixed = TRUE)
+})
+
+# NOTE: an end-to-end test on ggplot2::mpg lives with the upcoming `.value`
+# fallback work (auto-counting when no `value` column is present). The two
+# error-path tests above cover the validation added in this commit.
+
 # ---- Helper unit tests (offline, no kable rendering) -------------------------
 
 test_that("validate_drop is silent on well-formed input", {
