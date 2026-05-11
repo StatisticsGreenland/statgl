@@ -35,7 +35,9 @@
     on mobile while still rendering them on desktop. Validation
     mirrors `.drop` (warns on bad shape, unknown dimension, zero-match
     values).
-  - Only takes effect when `.as_html = TRUE`; ignored otherwise.
+  - The CSS is embedded into the returned table's underlying HTML, so
+    it travels with the table whether you take the default kable
+    return or pass `.as_html = TRUE` for shortcode parameters.
 * `statgl_fetch()` gains three new arguments:
   - `.lang` — override the API language directly. When `x` is a table
     ID, forwarded to `statgl_url()`; when `x` is a URL, the
@@ -76,6 +78,24 @@
   filtering). `.secondary` still works for now but emits a
   `lifecycle::deprecate_warn`. If both are supplied, `.hide_mobile`
   wins.
+* `statgl_table()` and `statgl_crosstable()` now return an
+  [`htmlwidget`][htmlwidgets::createWidget] by default, mirroring the
+  return type of [`statgl_plot()`][statgl_plot]. The widget wraps the
+  pre-rendered table HTML (kable + any `.hide_mobile` `<style>` block)
+  in a trivial JS shim that just sets `innerHTML` on its container
+  `<div>`. The benefit is integration parity with `statgl_plot()`:
+  the same return value opens in the RStudio Viewer interactively,
+  renders in knitr / Quarto chunks, and substitutes cleanly into
+  Quarto **shortcode parameters** (e.g. `` `r t` `` inside
+  `{{< … >}}`) the way other widgets do.
+* `.as_html = TRUE` is retained as an escape hatch and still returns
+  a plain character vector with no class — for callers that need to
+  bypass the widget entirely.
+* The widget bundles Bootstrap 5.1.3 as an HTML dependency so the
+  kableExtra bootstrap classes (`table`, `table-striped`, …) style
+  correctly when the widget renders standalone (e.g. RStudio
+  Viewer). Quarto / R Markdown documents that already bundle
+  Bootstrap will dedupe by name + version.
 
 ## Behavior changes (continued)
 

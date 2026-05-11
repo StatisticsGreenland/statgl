@@ -37,7 +37,7 @@ statgl_table(
 that should be hidden on small screens (mobile). Implemented via a CSS
 media query (\verb{max-width: 768px}) emitted inline alongside the table; the
 columns are still present in the HTML, just visually hidden on narrow
-viewports. Only takes effect when \code{.as_html = TRUE}.}
+viewports.}
 
 \item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.hide_mobile}
 instead. Same shape and semantics.}
@@ -65,11 +65,19 @@ first column via \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}}
 \item{.bottom_rule}{Logical; if \code{TRUE}, draws a thick bottom border on the
 last data row.}
 
-\item{.as_html}{Logical; if \code{TRUE}, return an HTML string. If \code{FALSE},
-return a \code{kableExtra} table object.}
+\item{.as_html}{Logical; if \code{FALSE} (default), returns an
+\code{htmlwidget} that renders correctly in every context — the
+RStudio Viewer when called interactively, knitr / Quarto chunks,
+and Quarto shortcode parameters — matching the behavior of
+\code{\link[=statgl_plot]{statgl_plot()}}. If \code{TRUE}, returns a plain length-1 character
+vector instead; kept as an escape hatch for environments that
+can't handle widgets.}
 }
 \value{
-A \code{kableExtra} table or HTML string, depending on \code{.as_html}.
+An \code{htmlwidget} object by default (wrapping the rendered
+table HTML), or a length-1 character vector when
+\code{.as_html = TRUE}. In both cases the HTML includes a \verb{<style>}
+block when \code{.hide_mobile} is in play.
 }
 \description{
 Build a clean, styled HTML table suitable for Statistics Greenland pages.
@@ -86,8 +94,7 @@ df |>
     .row_label       = "",
     .replace_nas     = "..",
     .first_col_width = "12em",
-    .bottom_rule     = TRUE,
-    .as_html         = TRUE
+    .bottom_rule     = TRUE
   )
 }
 

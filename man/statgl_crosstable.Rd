@@ -80,9 +80,8 @@ instead. Same shape and semantics.}
 (same shape as \code{.drop}) identifying column groups to \strong{visually hide
 on small screens} via a CSS media query (\verb{max-width: 768px}). Unlike
 \code{.drop}, the columns remain in the rendered HTML — they're just hidden
-on narrow viewports. Only takes effect when \code{.as_html = TRUE}. Validated
-the same way as \code{.drop}, so typos in dimension names or values surface
-as warnings.}
+on narrow viewports. Validated the same way as \code{.drop}, so typos in
+dimension names or values surface as warnings.}
 
 \item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
 \code{0} with an en-dash), or a single character string used as a custom
@@ -96,13 +95,19 @@ warning.}
 \item{.first_col_width}{Optional CSS width passed to
 \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}
 
-\item{.as_html}{Logical; if \code{FALSE} (default) returns a \code{kableExtra} table
-object; if \code{TRUE}, returns a single HTML string.}
+\item{.as_html}{Logical; if \code{FALSE} (default), returns an
+\code{htmlwidget} that renders correctly in every context — the
+RStudio Viewer when called interactively, knitr / Quarto chunks,
+and Quarto shortcode parameters — matching the behavior of
+\code{\link[=statgl_plot]{statgl_plot()}}. If \code{TRUE}, returns a plain length-1 character
+vector instead; kept as an escape hatch for environments that
+can't handle widgets.}
 }
 \value{
-If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.
-
-If \code{.as_html = TRUE}, a length-1 character vector containing HTML.
+An \code{htmlwidget} object by default (wrapping the rendered
+table HTML), or a length-1 character vector when
+\code{.as_html = TRUE}. In both cases the HTML includes a \verb{<style>}
+block when \code{.hide_mobile} is in play.
 }
 \description{
 Build a wide crosstable with grouped column headers and formatted numeric

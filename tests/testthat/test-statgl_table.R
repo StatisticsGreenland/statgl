@@ -33,7 +33,7 @@ test_that(".drop with no matches still produces a (warned) table", {
   expect_warning(
     out <- statgl_crosstable(
       df, gender,
-      .drop = list(gender = "Totaal"), # typo
+      .drop    = list(gender = "Totaal"), # typo
       .as_html = TRUE
     ),
     "matched no columns"
@@ -49,7 +49,7 @@ test_that(".drop with no matches still produces a (warned) table", {
 test_that(".drop warns when given a non-list shape", {
   df <- make_long_df()
   expect_warning(
-    statgl_crosstable(df, gender, .drop = "T", .as_html = TRUE),
+    statgl_crosstable(df, gender, .drop = "T"),
     "named list"
   )
 })
@@ -59,8 +59,7 @@ test_that(".drop warns on unknown column-group dimension", {
   expect_warning(
     statgl_crosstable(
       df, gender,
-      .drop = list(genders = "T"), # typo on the dim name
-      .as_html = TRUE
+      .drop = list(genders = "T") # typo on the dim name
     ),
     "is not a column-group dimension"
   )
@@ -71,8 +70,7 @@ test_that(".drop warns when values match nothing", {
   expect_warning(
     statgl_crosstable(
       df, gender,
-      .drop = list(gender = "Totaal"),
-      .as_html = TRUE
+      .drop = list(gender = "Totaal")
     ),
     'values c\\("Totaal"\\) matched no columns'
   )
@@ -86,7 +84,7 @@ test_that(".secondary still works but warns about deprecation", {
     out <- statgl_crosstable(
       df, gender,
       .secondary = list(gender = "T"),
-      .as_html = TRUE
+      .as_html   = TRUE
     ),
     class = "lifecycle_warning_deprecated"
   )
@@ -174,8 +172,7 @@ test_that("statgl_crosstable .replace_nas = TRUE warns and uses '.'", {
   expect_warning(
     out <- statgl_crosstable(
       df, gender,
-      .replace_nas = TRUE,
-      .as_html = TRUE
+      .replace_nas = TRUE
     ),
     "deprecated"
   )
@@ -216,7 +213,8 @@ make_wide_for_hide <- function() {
   )
 }
 
-test_that("statgl_table .hide_mobile emits a media-query <style> on .as_html", {
+test_that("statgl_table .hide_mobile emits a media-query <style>", {
+  # Use .as_html = TRUE so `out` is a character vector for expect_match.
   out <- statgl_table(
     make_wide_for_hide(),
     .hide_mobile = ialt,
@@ -232,18 +230,6 @@ test_that("statgl_table .hide_mobile emits a media-query <style> on .as_html", {
 test_that("statgl_table without .hide_mobile emits no media-query CSS", {
   out <- statgl_table(make_wide_for_hide(), .as_html = TRUE)
   expect_no_match(out, "max-width: 768px", fixed = TRUE)
-})
-
-test_that("statgl_table .hide_mobile is ignored when .as_html = FALSE", {
-  out <- statgl_table(
-    make_wide_for_hide(),
-    .hide_mobile = ialt,
-    .as_html     = FALSE
-  )
-  # `out` is a kable object (knitr_kable is a character S3, so we test
-  # the class — not is.character()).
-  expect_s3_class(out, "knitr_kable")
-  expect_no_match(as.character(out), "max-width: 768px", fixed = TRUE)
 })
 
 test_that("statgl_table .secondary still works but warns about deprecation", {
@@ -287,16 +273,6 @@ test_that("statgl_crosstable .hide_mobile emits CSS without dropping columns", {
   expect_match(out, ">T</div>")
 })
 
-test_that("statgl_crosstable .hide_mobile is ignored when .as_html = FALSE", {
-  out <- statgl_crosstable(
-    make_long_df(), gender,
-    .hide_mobile = list(gender = "T"),
-    .as_html     = FALSE
-  )
-  expect_s3_class(out, "knitr_kable")
-  expect_no_match(as.character(out), "max-width: 768px", fixed = TRUE)
-})
-
 test_that("statgl_crosstable .hide_mobile warns on non-list shape", {
   expect_warning(
     statgl_crosstable(
@@ -328,6 +304,67 @@ test_that("statgl_crosstable .hide_mobile warns when values match nothing", {
     ),
     "matched no columns"
   )
+})
+
+# ---- Return type: htmlwidget by default -------------------------------------
+
+test_that("statgl_table returns an htmlwidget by default", {
+  out <- statgl_table(make_wide_for_hide())
+  expect_s3_class(out, "htmlwidget")
+  expect_s3_class(out, "statgl_table")
+  # The pre-rendered HTML lives at out$x$html.
+  expect_type(out$x$html, "character")
+  expect_match(out$x$html, "<table", fixed = TRUE)
+})
+
+test_that("statgl_crosstable returns an htmlwidget by default", {
+  out <- statgl_crosstable(make_long_df(), gender)
+  expect_s3_class(out, "htmlwidget")
+  expect_match(out$x$html, "<table", fixed = TRUE)
+})
+
+test_that("statgl_table .hide_mobile CSS is embedded in the widget HTML", {
+  out <- statgl_table(make_wide_for_hide(), .hide_mobile = ialt)
+  expect_s3_class(out, "htmlwidget")
+  expect_match(out$x$html, "max-width: 768px", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .hide_mobile CSS is embedded in the widget HTML", {
+  out <- statgl_crosstable(
+    make_long_df(), gender,
+    .hide_mobile = list(gender = "T")
+  )
+  expect_s3_class(out, "htmlwidget")
+  expect_match(out$x$html, "max-width: 768px", fixed = TRUE)
+})
+
+# ---- Escape hatch: .as_html = TRUE returns a plain character vector ---------
+
+test_that("statgl_table .as_html = TRUE returns a plain HTML string", {
+  out <- statgl_table(make_wide_for_hide(), .as_html = TRUE)
+  expect_type(out, "character")
+  expect_false(inherits(out, "htmlwidget"))
+  expect_false(inherits(out, "knitr_kable"))
+  expect_match(out, "<table", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .as_html = TRUE returns a plain HTML string", {
+  out <- statgl_crosstable(
+    make_long_df(), gender,
+    .as_html = TRUE
+  )
+  expect_type(out, "character")
+  expect_false(inherits(out, "htmlwidget"))
+  expect_match(out, "<table", fixed = TRUE)
+})
+
+test_that(".as_html = TRUE also carries the .hide_mobile CSS", {
+  out <- statgl_table(
+    make_wide_for_hide(),
+    .hide_mobile = ialt,
+    .as_html     = TRUE
+  )
+  expect_match(out, "max-width: 768px", fixed = TRUE)
 })
 
 # ---- Helper unit tests (offline, no kable rendering) -------------------------

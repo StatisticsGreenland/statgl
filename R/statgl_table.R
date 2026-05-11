@@ -15,7 +15,7 @@
 #'   that should be hidden on small screens (mobile). Implemented via a CSS
 #'   media query (`max-width: 768px`) emitted inline alongside the table; the
 #'   columns are still present in the HTML, just visually hidden on narrow
-#'   viewports. Only takes effect when `.as_html = TRUE`.
+#'   viewports.
 #' @param .secondary `r lifecycle::badge("deprecated")` Use `.hide_mobile`
 #'   instead. Same shape and semantics.
 #' @param .row_group Optional column (bare or quoted) used to create
@@ -34,10 +34,18 @@
 #'   first column via [kableExtra::column_spec()].
 #' @param .bottom_rule Logical; if `TRUE`, draws a thick bottom border on the
 #'   last data row.
-#' @param .as_html Logical; if `TRUE`, return an HTML string. If `FALSE`,
-#'   return a `kableExtra` table object.
+#' @param .as_html Logical; if `FALSE` (default), returns an
+#'   `htmlwidget` that renders correctly in every context — the
+#'   RStudio Viewer when called interactively, knitr / Quarto chunks,
+#'   and Quarto shortcode parameters — matching the behavior of
+#'   [statgl_plot()]. If `TRUE`, returns a plain length-1 character
+#'   vector instead; kept as an escape hatch for environments that
+#'   can't handle widgets.
 #'
-#' @return A `kableExtra` table or HTML string, depending on `.as_html`.
+#' @return An `htmlwidget` object by default (wrapping the rendered
+#'   table HTML), or a length-1 character vector when
+#'   `.as_html = TRUE`. In both cases the HTML includes a `<style>`
+#'   block when `.hide_mobile` is in play.
 #'
 #' @examples
 #' \dontrun{
@@ -47,8 +55,7 @@
 #'     .row_label       = "",
 #'     .replace_nas     = "..",
 #'     .first_col_width = "12em",
-#'     .bottom_rule     = TRUE,
-#'     .as_html         = TRUE
+#'     .bottom_rule     = TRUE
 #'   )
 #' }
 #'
@@ -204,15 +211,18 @@ statgl_table <- function(
     )
   }
 
-  # --- return kable unless HTML requested ----------------------------------
-  if (!isTRUE(.as_html)) {
-    return(k)
+  # --- Escape hatch: plain character HTML (legacy shortcode path) --------
+  if (isTRUE(.as_html)) {
+    return(hide_mobile_css(as.character(k), hide_idx))
   }
 
-  html <- as.character(k)
-
-  # --- responsive hide of .hide_mobile columns -----------------------------
-  hide_mobile_css(html, hide_idx)
+  # --- Default: wrap the rendered table in an htmlwidget -----------------
+  # The widget framework gives us the same Quarto / knitr / RStudio
+  # integration that statgl_plot() gets from highcharter: a single
+  # return value that opens in the Viewer, renders in chunks, and
+  # interpolates cleanly into Quarto shortcode parameters.
+  k_with_css <- attach_hide_mobile_css(k, hide_idx)
+  statgl_table_widget(as.character(k_with_css))
 }
 
 #' Crosstable helper for Statgl
@@ -265,9 +275,8 @@ statgl_table <- function(
 #'   (same shape as `.drop`) identifying column groups to **visually hide
 #'   on small screens** via a CSS media query (`max-width: 768px`). Unlike
 #'   `.drop`, the columns remain in the rendered HTML — they're just hidden
-#'   on narrow viewports. Only takes effect when `.as_html = TRUE`. Validated
-#'   the same way as `.drop`, so typos in dimension names or values surface
-#'   as warnings.
+#'   on narrow viewports. Validated the same way as `.drop`, so typos in
+#'   dimension names or values surface as warnings.
 #' @param .replace_0s `FALSE` (default; no replacement), `TRUE` (replace
 #'   `0` with an en-dash), or a single character string used as a custom
 #'   replacement.
@@ -277,14 +286,18 @@ statgl_table <- function(
 #'   warning.
 #' @param .first_col_width Optional CSS width passed to
 #'   [kableExtra::column_spec()] for the first column (e.g. `"8em"`).
-#' @param .as_html Logical; if `FALSE` (default) returns a `kableExtra` table
-#'   object; if `TRUE`, returns a single HTML string.
+#' @param .as_html Logical; if `FALSE` (default), returns an
+#'   `htmlwidget` that renders correctly in every context — the
+#'   RStudio Viewer when called interactively, knitr / Quarto chunks,
+#'   and Quarto shortcode parameters — matching the behavior of
+#'   [statgl_plot()]. If `TRUE`, returns a plain length-1 character
+#'   vector instead; kept as an escape hatch for environments that
+#'   can't handle widgets.
 #'
-#'
-#' @return
-#' If `.as_html = FALSE`, a `knitr_kable` / `kableExtra` object.
-#'
-#' If `.as_html = TRUE`, a length-1 character vector containing HTML.
+#' @return An `htmlwidget` object by default (wrapping the rendered
+#'   table HTML), or a length-1 character vector when
+#'   `.as_html = TRUE`. In both cases the HTML includes a `<style>`
+#'   block when `.hide_mobile` is in play.
 #'
 #' @importFrom dplyr arrange distinct mutate select across all_of count %>%
 #' @importFrom tidyr unite pivot_wider
@@ -600,11 +613,14 @@ statgl_crosstable <- function(
     hide_idx <- which(hide_mask) + stub_span
   }
 
-  if (.as_html) {
+  # --- Escape hatch: plain character HTML (legacy shortcode path) -------
+  if (isTRUE(.as_html)) {
     return(hide_mobile_css(as.character(kb), hide_idx))
   }
 
-  kb
+  # --- Default: wrap the rendered table in an htmlwidget --------------
+  kb_with_css <- attach_hide_mobile_css(kb, hide_idx)
+  statgl_table_widget(as.character(kb_with_css))
 }
 
 # Internal helpers -------------------------------------------------------------
@@ -743,6 +759,18 @@ validate_hide_mobile <- function(hide_mobile, combo_df) {
     }
   }
   invisible()
+}
+
+# Attach the .hide_mobile <style> block to a kable object, preserving
+# the kable's class and attributes so its print / knit_print methods
+# keep doing the right thing (Viewer rendering, chunk rendering,
+# inline R, shortcode stringification). If `hide_idx` is empty, the
+# kable is returned untouched.
+attach_hide_mobile_css <- function(kable_obj, hide_idx) {
+  if (!length(hide_idx)) return(kable_obj)
+  new_html <- hide_mobile_css(as.character(kable_obj), hide_idx)
+  attributes(new_html) <- attributes(kable_obj)
+  new_html
 }
 
 # Wrap a rendered HTML kable string with a media-query <style> block

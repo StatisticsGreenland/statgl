@@ -1,0 +1,11 @@
+# Bootstrap is loaded so the kable's bootstrap classes (table,
+# table-striped, table-hover, table-condensed, table-responsive)
+# style correctly when the widget is rendered standalone
+# (RStudio Viewer, single-file HTML). Quarto / R Markdown documents
+# that already bundle bootstrap will dedupe by name+version.
+dependencies:
+  - name: bootstrap
+    version: 5.1.3
+    src:
+      href: https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css
+    stylesheet: bootstrap.min.css
