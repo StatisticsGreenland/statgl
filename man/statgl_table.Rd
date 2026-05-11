@@ -10,6 +10,7 @@ statgl_table(
   .digits = 3,
   .big.mark = ".",
   .decimal.mark = ",",
+  .hide_mobile = NULL,
   .secondary = NULL,
   .row_group = NULL,
   .row_label = NULL,
@@ -32,8 +33,14 @@ statgl_table(
 
 \item{.decimal.mark}{Decimal separator.}
 
-\item{.secondary}{Optional tidyselect expression identifying columns that
-should be hidden on small screens (mobile). Hidden via a CSS media query.}
+\item{.hide_mobile}{Optional tidyselect expression identifying columns
+that should be hidden on small screens (mobile). Implemented via a CSS
+media query (\verb{max-width: 768px}) emitted inline alongside the table; the
+columns are still present in the HTML, just visually hidden on narrow
+viewports. Only takes effect when \code{.as_html = TRUE}.}
+
+\item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.hide_mobile}
+instead. Same shape and semantics.}
 
 \item{.row_group}{Optional column (bare or quoted) used to create
 grouped row banners. The column is removed from the printed table.}

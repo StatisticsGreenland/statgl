@@ -11,8 +11,13 @@
 #' @param .digits Number of digits used by [format()] for numeric columns.
 #' @param .big.mark Thousands separator.
 #' @param .decimal.mark Decimal separator.
-#' @param .secondary Optional tidyselect expression identifying columns that
-#'   should be hidden on small screens (mobile). Hidden via a CSS media query.
+#' @param .hide_mobile Optional tidyselect expression identifying columns
+#'   that should be hidden on small screens (mobile). Implemented via a CSS
+#'   media query (`max-width: 768px`) emitted inline alongside the table; the
+#'   columns are still present in the HTML, just visually hidden on narrow
+#'   viewports. Only takes effect when `.as_html = TRUE`.
+#' @param .secondary `r lifecycle::badge("deprecated")` Use `.hide_mobile`
+#'   instead. Same shape and semantics.
 #' @param .row_group Optional column (bare or quoted) used to create
 #'   grouped row banners. The column is removed from the printed table.
 #' @param .row_label Optional label for the first column (similar to
@@ -54,7 +59,8 @@ statgl_table <- function(
   .digits = 3,
   .big.mark = ".",
   .decimal.mark = ",",
-  .secondary = NULL,
+  .hide_mobile = NULL,
+  .secondary = NULL, # deprecated: use .hide_mobile
   .row_group = NULL,
   .row_label = NULL,
   .year_col,
@@ -145,12 +151,14 @@ statgl_table <- function(
   # --- alignment: first col left, rest right -------------------------------
   aligns <- paste0(c("l", rep("r", max(ncol(df) - 1L, 0L))), collapse = "")
 
-  # --- secondary columns (on the printed df) -------------------------------
-  sec_idx <- integer(0)
-  if (!is.null(.secondary)) {
-    sec_idx <- unname(
-      tidyselect::eval_select(rlang::enquo(.secondary), df)
-    )
+  # --- mobile-hidden columns (on the printed df) ---------------------------
+  hide_q <- resolve_hide_mobile_q(
+    rlang::enquo(.hide_mobile),
+    rlang::enquo(.secondary)
+  )
+  hide_idx <- integer(0)
+  if (!rlang::quo_is_null(hide_q)) {
+    hide_idx <- unname(tidyselect::eval_select(hide_q, df))
   }
 
   # --- build base kable (after dropping group column) ----------------------
@@ -203,46 +211,8 @@ statgl_table <- function(
 
   html <- as.character(k)
 
-  # --- responsive hide .secondary columns ----------------------------------
-  if (!length(sec_idx)) {
-    return(html)
-  }
-
-  table_id <- paste0(
-    "statgltbl-",
-    paste(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
-  )
-
-  html <- sub(
-    "<table",
-    paste0("<table id=\"", table_id, "\""),
-    html,
-    fixed = TRUE
-  )
-
-  selectors_td <- paste(
-    sprintf("#%s td:nth-child(%d)", table_id, sec_idx),
-    collapse = ",\n  "
-  )
-  selectors_th <- paste(
-    sprintf("#%s th:nth-child(%d)", table_id, sec_idx),
-    collapse = ",\n  "
-  )
-
-  style <- sprintf(
-    "<style>
-@media (max-width: 768px) {
-  %s,
-  %s {
-    display: none;
-  }
-}
-</style>",
-    selectors_td,
-    selectors_th
-  )
-
-  paste(style, html, sep = "\n")
+  # --- responsive hide of .hide_mobile columns -----------------------------
+  hide_mobile_css(html, hide_idx)
 }
 
 #' Crosstable helper for Statgl
@@ -291,6 +261,13 @@ statgl_table <- function(
 #'   value-mismatches surface clearly.
 #' @param .secondary `r lifecycle::badge("deprecated")` Use `.drop`
 #'   instead. Same shape and semantics.
+#' @param .hide_mobile Optional named list of `column_group = values_to_hide`
+#'   (same shape as `.drop`) identifying column groups to **visually hide
+#'   on small screens** via a CSS media query (`max-width: 768px`). Unlike
+#'   `.drop`, the columns remain in the rendered HTML — they're just hidden
+#'   on narrow viewports. Only takes effect when `.as_html = TRUE`. Validated
+#'   the same way as `.drop`, so typos in dimension names or values surface
+#'   as warnings.
 #' @param .replace_0s `FALSE` (default; no replacement), `TRUE` (replace
 #'   `0` with an en-dash), or a single character string used as a custom
 #'   replacement.
@@ -332,6 +309,7 @@ statgl_crosstable <- function(
   .bold_rows = NULL, # numeric / character / formula
   .drop = NULL, # list(dim_name = values_to_drop)
   .secondary = NULL, # deprecated: use .drop
+  .hide_mobile = NULL, # list(dim_name = values_to_hide_on_mobile)
   .replace_0s = FALSE, # FALSE / TRUE (en-dash) / custom string
   .replace_nas = NULL, # NULL / custom string (TRUE deprecated)
   .first_col_width = NULL,
@@ -606,8 +584,24 @@ statgl_crosstable <- function(
     kb <- kableExtra::row_spec(kb, bold_idx, bold = TRUE)
   }
 
+  # ---- 9) Mobile hiding (.hide_mobile, CSS) --------------------------------
+  # Indices reference positions in the final wide table: row stubs occupy
+  # columns 1..stub_span, then the (post-.drop) wide_cols follow. We hide via
+  # CSS so the columns are still in the HTML — just not rendered on narrow
+  # viewports — which is consistent with statgl_table's .hide_mobile.
+  hide_idx <- integer(0)
+  if (!is.null(.hide_mobile)) {
+    validate_hide_mobile(.hide_mobile, combo_df)
+    hide_mask <- rep(FALSE, nrow(combo_df))
+    for (nm in names(.hide_mobile)) {
+      if (!nm %in% names(combo_df)) next
+      hide_mask <- hide_mask | combo_df[[nm]] %in% .hide_mobile[[nm]]
+    }
+    hide_idx <- which(hide_mask) + stub_span
+  }
+
   if (.as_html) {
-    return(as.character(kb))
+    return(hide_mobile_css(as.character(kb), hide_idx))
   }
 
   kb
@@ -689,6 +683,111 @@ resolve_replace_0s <- function(x) {
     call. = FALSE
   )
   NULL
+}
+
+# Pick between the new `.hide_mobile` and the deprecated `.secondary`
+# (CSS-hide alias) in statgl_table. Both arrive as already-captured
+# quosures (tidyselect specifications). If `.secondary` is in play we
+# emit a deprecation warning; if both are supplied, `.hide_mobile` wins
+# but the warning still fires.
+resolve_hide_mobile_q <- function(hide_q, sec_q) {
+  if (!rlang::quo_is_null(sec_q)) {
+    lifecycle::deprecate_warn(
+      "0.5.2",
+      "statgl_table(.secondary = )",
+      "statgl_table(.hide_mobile = )"
+    )
+    if (rlang::quo_is_null(hide_q)) return(sec_q)
+  }
+  hide_q
+}
+
+# Validate the `.hide_mobile` shape used by statgl_crosstable (a named
+# list of `column_group = values_to_hide`, mirroring `.drop`). Same
+# three failure modes are surfaced as warnings: bad shape, unknown
+# dimension, zero-match values.
+validate_hide_mobile <- function(hide_mobile, combo_df) {
+  if (!is.list(hide_mobile) ||
+      is.null(names(hide_mobile)) ||
+      any(!nzchar(names(hide_mobile)))) {
+    warning(
+      "`.hide_mobile` must be a named list of `column_group = values_to_hide`. ",
+      "Got: ", paste(deparse(hide_mobile), collapse = " "),
+      call. = FALSE
+    )
+    return(invisible())
+  }
+
+  dim_names <- setdiff(names(combo_df), "col_key")
+
+  for (nm in names(hide_mobile)) {
+    if (!nm %in% dim_names) {
+      warning(
+        "`.hide_mobile$", nm, "` is not a column-group dimension. Available: ",
+        paste(dim_names, collapse = ", "), ".",
+        call. = FALSE
+      )
+      next
+    }
+    vals <- hide_mobile[[nm]]
+    column_values <- combo_df[[nm]]
+    if (!any(vals %in% column_values)) {
+      warning(
+        "`.hide_mobile$", nm, "` values c(",
+        paste0('"', vals, '"', collapse = ", "),
+        ") matched no columns. Available: ",
+        paste0('"', unique(as.character(column_values)), '"', collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+  }
+  invisible()
+}
+
+# Wrap a rendered HTML kable string with a media-query <style> block
+# that hides columns at the given positions on narrow viewports
+# (<= 768px). Used by both statgl_table and statgl_crosstable so the
+# CSS shape stays identical. `hide_idx` is a vector of 1-based column
+# positions; if empty, returns `html` unchanged.
+hide_mobile_css <- function(html, hide_idx) {
+  if (!length(hide_idx)) return(html)
+
+  table_id <- paste0(
+    "statgltbl-",
+    paste(sample(c(letters, 0:9), 8, replace = TRUE), collapse = "")
+  )
+
+  html <- sub(
+    "<table",
+    paste0("<table id=\"", table_id, "\""),
+    html,
+    fixed = TRUE
+  )
+
+  selectors_td <- paste(
+    sprintf("#%s td:nth-child(%d)", table_id, hide_idx),
+    collapse = ",\n  "
+  )
+  selectors_th <- paste(
+    sprintf("#%s th:nth-child(%d)", table_id, hide_idx),
+    collapse = ",\n  "
+  )
+
+  style <- sprintf(
+    "<style>
+@media (max-width: 768px) {
+  %s,
+  %s {
+    display: none;
+  }
+}
+</style>",
+    selectors_td,
+    selectors_th
+  )
+
+  paste(style, html, sep = "\n")
 }
 
 # Resolve `.replace_nas` to either NULL (no replacement) or a single

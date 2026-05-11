@@ -18,6 +18,7 @@ statgl_crosstable(
   .bold_rows = NULL,
   .drop = NULL,
   .secondary = NULL,
+  .hide_mobile = NULL,
   .replace_0s = FALSE,
   .replace_nas = NULL,
   .first_col_width = NULL,
@@ -74,6 +75,14 @@ value-mismatches surface clearly.}
 
 \item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.drop}
 instead. Same shape and semantics.}
+
+\item{.hide_mobile}{Optional named list of \code{column_group = values_to_hide}
+(same shape as \code{.drop}) identifying column groups to \strong{visually hide
+on small screens} via a CSS media query (\verb{max-width: 768px}). Unlike
+\code{.drop}, the columns remain in the rendered HTML — they're just hidden
+on narrow viewports. Only takes effect when \code{.as_html = TRUE}. Validated
+the same way as \code{.drop}, so typos in dimension names or values surface
+as warnings.}
 
 \item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
 \code{0} with an en-dash), or a single character string used as a custom

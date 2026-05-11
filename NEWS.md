@@ -22,6 +22,20 @@
   `statgl_fetch("BEXSTA", time = px_top(3))`. `px_top()` is unchanged
   and remains the canonical name; both are documented on the same Rd
   page.
+* `statgl_table()` and `statgl_crosstable()` gain a `.hide_mobile`
+  argument for CSS-based responsive hiding of columns at small
+  viewports (`max-width: 768px`). The columns remain in the rendered
+  HTML; they're just visually hidden on narrow screens.
+  - In `statgl_table()`, `.hide_mobile` is a tidyselect expression
+    (e.g. `.hide_mobile = c(ialt, model)`) and replaces the old,
+    same-shape `.secondary` argument.
+  - In `statgl_crosstable()`, `.hide_mobile` is a named list of
+    `column_group = values_to_hide` (same shape as `.drop`), so
+    `.hide_mobile = list(gender = "Total")` hides every `Total` column
+    on mobile while still rendering them on desktop. Validation
+    mirrors `.drop` (warns on bad shape, unknown dimension, zero-match
+    values).
+  - Only takes effect when `.as_html = TRUE`; ignored otherwise.
 * `statgl_fetch()` gains three new arguments:
   - `.lang` — override the API language directly. When `x` is a table
     ID, forwarded to `statgl_url()`; when `x` is a URL, the
@@ -57,6 +71,11 @@
   to clarify that it filters data (not styling). `.secondary` still
   works for now but emits a `lifecycle::deprecate_warn`. If both are
   supplied, `.drop` wins.
+* `statgl_table()`'s `.secondary` argument is renamed to `.hide_mobile`
+  to clarify that it controls CSS responsive hiding (not styling or
+  filtering). `.secondary` still works for now but emits a
+  `lifecycle::deprecate_warn`. If both are supplied, `.hide_mobile`
+  wins.
 
 ## Behavior changes (continued)
 

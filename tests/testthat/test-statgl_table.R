@@ -204,6 +204,132 @@ test_that(".value error names the missing column and lists what is available", {
 # fallback work (auto-counting when no `value` column is present). The two
 # error-path tests above cover the validation added in this commit.
 
+# ---- statgl_table: .hide_mobile (CSS responsive hiding) ---------------------
+
+make_wide_for_hide <- function() {
+  data.frame(
+    aar     = c(2020, 2021),
+    kvinder = c(1L, 2L),
+    maend   = c(3L, 4L),
+    ialt    = c(5L, 6L),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("statgl_table .hide_mobile emits a media-query <style> on .as_html", {
+  out <- statgl_table(
+    make_wide_for_hide(),
+    .hide_mobile = ialt,
+    .as_html     = TRUE
+  )
+  expect_match(out, "max-width: 768px", fixed = TRUE)
+  expect_match(out, "display: none",    fixed = TRUE)
+  # The hidden column is still in the HTML — just CSS-hidden.
+  expect_match(out, "> 5 <", fixed = TRUE)
+  expect_match(out, "> 6 <", fixed = TRUE)
+})
+
+test_that("statgl_table without .hide_mobile emits no media-query CSS", {
+  out <- statgl_table(make_wide_for_hide(), .as_html = TRUE)
+  expect_no_match(out, "max-width: 768px", fixed = TRUE)
+})
+
+test_that("statgl_table .hide_mobile is ignored when .as_html = FALSE", {
+  out <- statgl_table(
+    make_wide_for_hide(),
+    .hide_mobile = ialt,
+    .as_html     = FALSE
+  )
+  # `out` is a kable object (knitr_kable is a character S3, so we test
+  # the class — not is.character()).
+  expect_s3_class(out, "knitr_kable")
+  expect_no_match(as.character(out), "max-width: 768px", fixed = TRUE)
+})
+
+test_that("statgl_table .secondary still works but warns about deprecation", {
+  expect_warning(
+    out <- statgl_table(
+      make_wide_for_hide(),
+      .secondary = ialt,
+      .as_html   = TRUE
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_match(out, "max-width: 768px", fixed = TRUE)
+})
+
+test_that(".hide_mobile wins when both .hide_mobile and .secondary are supplied", {
+  expect_warning(
+    out <- statgl_table(
+      make_wide_for_hide(),
+      .hide_mobile = ialt,    # column 4
+      .secondary   = kvinder, # column 2
+      .as_html     = TRUE
+    ),
+    class = "lifecycle_warning_deprecated"
+  )
+  # .hide_mobile (column 4) is what gets applied — not .secondary (column 2).
+  expect_match(out, "nth-child\\(4\\)")
+  expect_no_match(out, "nth-child\\(2\\)")
+})
+
+# ---- statgl_crosstable: .hide_mobile (CSS responsive hiding) ----------------
+
+test_that("statgl_crosstable .hide_mobile emits CSS without dropping columns", {
+  out <- statgl_crosstable(
+    make_long_df(), gender,
+    .hide_mobile = list(gender = "T"),
+    .as_html     = TRUE
+  )
+  expect_match(out, "max-width: 768px", fixed = TRUE)
+  expect_match(out, "display: none",    fixed = TRUE)
+  # Unlike .drop, the T columns remain in the HTML (just CSS-hidden).
+  expect_match(out, ">T</div>")
+})
+
+test_that("statgl_crosstable .hide_mobile is ignored when .as_html = FALSE", {
+  out <- statgl_crosstable(
+    make_long_df(), gender,
+    .hide_mobile = list(gender = "T"),
+    .as_html     = FALSE
+  )
+  expect_s3_class(out, "knitr_kable")
+  expect_no_match(as.character(out), "max-width: 768px", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .hide_mobile warns on non-list shape", {
+  expect_warning(
+    statgl_crosstable(
+      make_long_df(), gender,
+      .hide_mobile = c("T"),
+      .as_html     = TRUE
+    ),
+    "must be a named list"
+  )
+})
+
+test_that("statgl_crosstable .hide_mobile warns on unknown dimension", {
+  expect_warning(
+    statgl_crosstable(
+      make_long_df(), gender,
+      .hide_mobile = list(genders = "T"),
+      .as_html     = TRUE
+    ),
+    "is not a column-group dimension"
+  )
+})
+
+test_that("statgl_crosstable .hide_mobile warns when values match nothing", {
+  expect_warning(
+    statgl_crosstable(
+      make_long_df(), gender,
+      .hide_mobile = list(gender = "X"),
+      .as_html     = TRUE
+    ),
+    "matched no columns"
+  )
+})
+
 # ---- Helper unit tests (offline, no kable rendering) -------------------------
 
 test_that("validate_drop is silent on well-formed input", {
@@ -240,4 +366,75 @@ test_that("resolve_drop prefers .drop over .secondary, warns on either", {
     class = "lifecycle_warning_deprecated"
   )
   expect_equal(out, list(g = "A"))
+})
+
+test_that("validate_hide_mobile is silent on well-formed input", {
+  validate_hide_mobile <- statgl:::validate_hide_mobile
+  combo_df <- data.frame(
+    gender  = c("M", "K", "T"),
+    col_key = c("M", "K", "T"),
+    stringsAsFactors = FALSE
+  )
+  expect_silent(validate_hide_mobile(list(gender = "T"), combo_df))
+})
+
+test_that("validate_hide_mobile surfaces the three silent-failure modes", {
+  validate_hide_mobile <- statgl:::validate_hide_mobile
+  combo_df <- data.frame(
+    gender  = c("M", "K", "T"),
+    col_key = c("M", "K", "T"),
+    stringsAsFactors = FALSE
+  )
+  expect_warning(validate_hide_mobile(c("T"), combo_df),
+                 "must be a named list")
+  expect_warning(validate_hide_mobile(list(genders = "T"), combo_df),
+                 "is not a column-group dimension")
+  expect_warning(validate_hide_mobile(list(gender = "X"), combo_df),
+                 "matched no columns")
+})
+
+test_that("resolve_hide_mobile_q prefers .hide_mobile and warns on .secondary", {
+  resolve_hide_mobile_q <- statgl:::resolve_hide_mobile_q
+
+  # Neither set -> returns the (NULL-wrapping) hide_q, no warning.
+  out <- resolve_hide_mobile_q(rlang::quo(NULL), rlang::quo(NULL))
+  expect_true(rlang::quo_is_null(out))
+
+  # Only .hide_mobile set -> returns hide_q, no warning.
+  expect_silent(
+    out <- resolve_hide_mobile_q(rlang::quo(year), rlang::quo(NULL))
+  )
+  expect_equal(rlang::as_label(out), "year")
+
+  # Only .secondary set -> warns, returns secondary.
+  expect_warning(
+    out <- resolve_hide_mobile_q(rlang::quo(NULL), rlang::quo(year)),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_equal(rlang::as_label(out), "year")
+
+  # Both set -> warns, returns .hide_mobile (wins).
+  expect_warning(
+    out <- resolve_hide_mobile_q(rlang::quo(year), rlang::quo(model)),
+    class = "lifecycle_warning_deprecated"
+  )
+  expect_equal(rlang::as_label(out), "year")
+})
+
+test_that("hide_mobile_css returns html unchanged on empty index", {
+  hide_mobile_css <- statgl:::hide_mobile_css
+  expect_identical(
+    hide_mobile_css("<table>x</table>", integer(0)),
+    "<table>x</table>"
+  )
+})
+
+test_that("hide_mobile_css wraps the table with media-query style", {
+  hide_mobile_css <- statgl:::hide_mobile_css
+  out <- hide_mobile_css("<table>x</table>", c(2L, 4L))
+  expect_match(out, "max-width: 768px",        fixed = TRUE)
+  expect_match(out, "<table id=\"statgltbl-",  fixed = TRUE)
+  expect_match(out, "td:nth-child\\(2\\)")
+  expect_match(out, "td:nth-child\\(4\\)")
+  expect_match(out, "th:nth-child\\(2\\)")
 })
