@@ -240,7 +240,16 @@ statgl_table <- function(
 #' @param ... Grouping columns for the **column headers** (e.g. `koen`,
 #'   `haendelsestype`). The first group becomes the top-level header; remaining
 #'   groups form sub-headers.
-#' @param .value Column used for the cell values (default `value`).
+#' @param .value Column used for the cell values, given as a bare
+#'   symbol, a string, or any tidyselect expression that resolves to
+#'   exactly one column. The default `NULL` means **auto**: if `df` has
+#'   a `value` column (the convention produced by [statgl_fetch()]) it
+#'   is used; otherwise the function counts rows via [dplyr::n()] per
+#'   `groups × row` combination and emits a message. To compute other
+#'   per-cell statistics (means, sums, etc.), pre-aggregate with
+#'   [dplyr::summarise()] before piping into `statgl_crosstable()`.
+#'   Passing `.value` to a column that doesn't exist, or to an
+#'   expression that selects more than one column, is an error.
 #' @param .row Tidyselect specification of one or more **row stub** columns.
 #'   These are shown on the left of the table. If `NULL`, all columns not used
 #'   in `...` or `.value` are used as row variables.
@@ -311,7 +320,7 @@ statgl_table <- function(
 statgl_crosstable <- function(
   df,
   ...,
-  .value = value,
+  .value = NULL, # NULL = auto: use `value` column if present, else dplyr::n()
   .row = NULL, # tidyselect spec; can be 1+ columns
   .row_group = NULL, # tidyselect spec; one or more stub cols to group
   .row_label = NULL, # label spanning all stub cols
@@ -339,18 +348,46 @@ statgl_crosstable <- function(
       call. = FALSE
     )
   }
-  value <- rlang::enquo(.value)
-  value_name <- rlang::quo_name(value)
+  # ---- Resolve .value ---------------------------------------------------
+  # NULL (default) = auto: use a `value` column if it exists, otherwise
+  # fall back to row counts via dplyr::n() and emit a message. Anything
+  # else is treated as a tidyselect spec that must resolve to exactly
+  # one existing column (so typos and multi-column expressions surface
+  # as clear errors).
+  .value_q   <- rlang::enquo(.value)
+  auto_value <- rlang::quo_is_null(.value_q)
 
-  if (!value_name %in% names(df)) {
-    stop(
-      "Column `", value_name, "` not found in `df`. ",
-      "Pass `.value = <column>` to choose the cell-value column. ",
-      "Available columns: ",
-      paste(names(df), collapse = ", "), ".",
-      call. = FALSE
+  if (auto_value) {
+    if ("value" %in% names(df)) {
+      value_name <- "value"
+    } else {
+      value_name <- "n" # the count column we'll add after row_names is known
+    }
+  } else {
+    sel <- tryCatch(
+      tidyselect::eval_select(.value_q, df),
+      error = function(e) {
+        val_label <- rlang::as_label(.value_q)
+        stop(
+          "Column `", val_label, "` not found in `df`. ",
+          "Pass `.value = <column>` to choose the cell-value column. ",
+          "Available columns: ",
+          paste(names(df), collapse = ", "), ".",
+          call. = FALSE
+        )
+      }
     )
+    if (length(sel) != 1L) {
+      stop(
+        "`.value` must select exactly one column; got: ",
+        paste(names(sel), collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+    value_name <- names(sel)
   }
+
+  value <- rlang::sym(value_name)
 
   # ---- 1) Determine row columns (can be 1 or many) -----------------
   if (missing(.row) || is.null(.row)) {
@@ -378,6 +415,22 @@ statgl_crosstable <- function(
 
   row_quos <- lapply(row_names, rlang::sym)
   primary_row_name <- row_names[1]
+
+  # ---- 1b) n() fallback: aggregate to one row per (group x row) combo --
+  # When `.value` is auto and the data frame has no `value` column, we
+  # count rows per (groups + row_names) combination and use that as the
+  # cell value. This is what makes `statgl_crosstable(mpg, manufacturer)`
+  # do something useful out of the box. For other statistics, the user
+  # should pre-aggregate with summarise() before piping in.
+  if (auto_value && value_name == "n") {
+    message(
+      "No `value` column found; counting rows via dplyr::n(). ",
+      "Pre-aggregate with summarise() for other statistics."
+    )
+    group_names_for_count <- vapply(groups, rlang::quo_name, character(1))
+    count_syms <- rlang::syms(c(group_names_for_count, row_names))
+    df <- dplyr::count(df, !!!count_syms, name = "n")
+  }
 
   # ---- 2) Replace zeros and NAs in df (before pivot/formatting) ----
   zero_repl <- resolve_replace_0s(.replace_0s)

@@ -104,12 +104,20 @@
   a dimension that isn't a column group, or supplies values that match
   no rows. Previously these silently produced an unfiltered table —
   the source of recurring "`.secondary` doesn't work" reports.
-* `statgl_crosstable()` now errors up-front if the column referenced by
-  `.value` doesn't exist in `df`, listing the available columns. The
-  default `.value = value` matches the convention from
-  `statgl_fetch()`, but data frames without a `value` column
-  (e.g. `ggplot2::mpg`) previously produced a confusing dplyr-internal
-  error about quosures.
+* `statgl_crosstable()`'s `.value` argument is now resolved more
+  carefully and its default changes from `value` to `NULL`:
+  - `NULL` (the new default) means **auto**: use a `value` column if
+    `df` has one (the convention produced by `statgl_fetch()`),
+    otherwise fall back to row counts via `dplyr::n()` and emit a
+    message nudging users toward `summarise()` for other statistics.
+    This means `statgl_crosstable(ggplot2::mpg, manufacturer)` now
+    produces a count crosstab out of the box.
+  - Explicit `.value` is resolved through `tidyselect::eval_select()`
+    and must yield exactly one existing column. Typos and stray
+    multi-column expressions surface as clear errors (`Column \`X\` not
+    found …` / `\`.value\` must select exactly one column; got: …`)
+    rather than the confusing dplyr-internal quosure error users hit
+    on `ggplot2::mpg` before.
 * `statgl_table()` and `statgl_crosstable()` now share the same shape
   for `.replace_0s` and `.replace_nas`:
   - `.replace_0s`: `FALSE` (default; no replacement), `TRUE` (replace

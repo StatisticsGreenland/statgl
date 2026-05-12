@@ -7,7 +7,7 @@
 statgl_crosstable(
   df,
   ...,
-  .value = value,
+  .value = NULL,
   .row = NULL,
   .row_group = NULL,
   .row_label = NULL,
@@ -32,7 +32,16 @@ statgl_crosstable(
 \code{haendelsestype}). The first group becomes the top-level header; remaining
 groups form sub-headers.}
 
-\item{.value}{Column used for the cell values (default \code{value}).}
+\item{.value}{Column used for the cell values, given as a bare
+symbol, a string, or any tidyselect expression that resolves to
+exactly one column. The default \code{NULL} means \strong{auto}: if \code{df} has
+a \code{value} column (the convention produced by \code{\link[=statgl_fetch]{statgl_fetch()}}) it
+is used; otherwise the function counts rows via \code{\link[dplyr:context]{dplyr::n()}} per
+\verb{groups × row} combination and emits a message. To compute other
+per-cell statistics (means, sums, etc.), pre-aggregate with
+\code{\link[dplyr:summarise]{dplyr::summarise()}} before piping into \code{statgl_crosstable()}.
+Passing \code{.value} to a column that doesn't exist, or to an
+expression that selects more than one column, is an error.}
 
 \item{.row}{Tidyselect specification of one or more \strong{row stub} columns.
 These are shown on the left of the table. If \code{NULL}, all columns not used

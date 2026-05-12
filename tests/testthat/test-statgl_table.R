@@ -180,13 +180,17 @@ test_that("statgl_crosstable .replace_nas = TRUE warns and uses '.'", {
 
 # ---- .value validation ------------------------------------------------------
 
-test_that("statgl_crosstable errors clearly when `.value` column is missing", {
-  df <- data.frame(a = c("x", "y"), b = c("p", "q"))  # no `value` column
-  expect_error(
-    statgl_crosstable(df, a),
-    "Column `value` not found",
-    fixed = TRUE
+test_that("statgl_crosstable falls back to n() when no `value` column", {
+  df <- data.frame(
+    region = c("A", "A", "B", "B", "B"),
+    year   = c(2020, 2021, 2020, 2020, 2021),
+    stringsAsFactors = FALSE
   )
+  expect_message(
+    out <- statgl_crosstable(df, region, .as_html = TRUE),
+    "counting rows via dplyr::n"
+  )
+  expect_match(out, "<table", fixed = TRUE)
 })
 
 test_that(".value error names the missing column and lists what is available", {
@@ -197,9 +201,29 @@ test_that(".value error names the missing column and lists what is available", {
   expect_match(conditionMessage(err), "a, b, c",                fixed = TRUE)
 })
 
-# NOTE: an end-to-end test on ggplot2::mpg lives with the upcoming `.value`
-# fallback work (auto-counting when no `value` column is present). The two
-# error-path tests above cover the validation added in this commit.
+test_that(".value resolving to multiple columns errors clearly", {
+  df <- data.frame(a = "x", b = 1, c = 2)
+  expect_error(
+    statgl_crosstable(df, a, .value = c(b, c)),
+    "must select exactly one column"
+  )
+})
+
+test_that(".value fallback to n() works on ggplot2::mpg", {
+  skip_if_not_installed("ggplot2")
+  expect_message(
+    out <- statgl_crosstable(
+      dplyr::select(ggplot2::mpg, manufacturer, trans),
+      trans,
+      .as_html = TRUE
+    ),
+    "counting rows via dplyr::n"
+  )
+  # `manufacturer` is the row-stub column; with the default
+  # .row_label = NULL the header is blanked, but the values still
+  # appear as row labels — check for one of them.
+  expect_match(out, "audi", fixed = TRUE)
+})
 
 # ---- statgl_table: .hide_mobile (CSS responsive hiding) ---------------------
 
