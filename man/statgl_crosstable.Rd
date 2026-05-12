@@ -11,6 +11,7 @@ statgl_crosstable(
   .row = NULL,
   .row_group = NULL,
   .row_label = NULL,
+  .digits = NULL,
   .big.mark = ".",
   .decimal.mark = ",",
   .caption = NULL,
@@ -22,6 +23,7 @@ statgl_crosstable(
   .replace_0s = FALSE,
   .replace_nas = NULL,
   .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 )
 }
@@ -55,6 +57,12 @@ repeated values in that column are hidden inside the table body.}
 \item{.row_label}{Optional label spanning all stub columns in the top header
 row. If \code{NULL} or \code{""}, a blank label is used; when blank, the stub column
 names are also hidden.}
+
+\item{.digits}{Optional number of significant digits passed to
+\code{\link[=format]{format()}} for numeric columns. Defaults to \code{NULL} (use
+\code{format()}'s default precision); set explicitly for consistent
+rounding. Same semantics as \code{\link[=statgl_table]{statgl_table()}}'s \code{.digits}, but with
+a \code{NULL} default so existing PXWeb-style output isn't re-rounded.}
 
 \item{.big.mark}{Thousands separator used for numeric formatting.}
 
@@ -103,6 +111,11 @@ warning.}
 
 \item{.first_col_width}{Optional CSS width passed to
 \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}
+
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), draws a thick
+bottom border on the last data row. Matches the Statistics
+Greenland design convention. Same semantics as
+\code{\link[=statgl_table]{statgl_table()}}'s \code{.bottom_rule}.}
 
 \item{.as_html}{Logical; if \code{FALSE} (default), returns an
 \code{htmlwidget} that renders correctly in every context — the

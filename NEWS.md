@@ -8,6 +8,23 @@
 
 ## New features
 
+* `statgl_table()` and `statgl_crosstable()` now share a common set of
+  styling arguments — features that previously lived on only one of
+  the two functions are available on both:
+  - `.caption` (was crosstable-only) now adds a table caption to
+    `statgl_table()` as well, passed through to `kableExtra::kable()`.
+  - `.bottom_rule` (was table-only) now draws the thick bottom border
+    on the last data row of a `statgl_crosstable()` too. Default
+    `TRUE` in both functions, matching the Statistics Greenland design
+    convention.
+  - `.bold_rows` (was crosstable-only) now works in `statgl_table()`.
+    Same shape: integer positions, a character vector matching values
+    in the first column, or a one-sided formula evaluated on the
+    formatted data frame (e.g. `~ year == max(year)`).
+  - `.digits` (was table-only) now exists on `statgl_crosstable()`.
+    Default is `NULL` (no rounding — preserves existing PXWeb output);
+    set explicitly to control precision via `format()`. The asymmetric
+    default with `statgl_table()`'s `.digits = 3` is deliberate.
 * `statgl_api_url()` is now exported. It returns the active API base URL
   (which can be overridden globally with
   `options(statgl.api_url = "...")`) and is the default for the

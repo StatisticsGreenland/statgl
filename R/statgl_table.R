@@ -32,8 +32,19 @@
 #'   character string used as the replacement for `NA` (e.g. `".."`).
 #' @param .first_col_width Optional CSS width (e.g. `"12em"`) applied to the
 #'   first column via [kableExtra::column_spec()].
-#' @param .bottom_rule Logical; if `TRUE`, draws a thick bottom border on the
-#'   last data row.
+#' @param .bottom_rule Logical; if `TRUE` (default), draws a thick bottom
+#'   border on the last data row. Matches the Statistics Greenland design
+#'   convention. Same semantics as [statgl_crosstable()]'s `.bottom_rule`.
+#' @param .caption Optional table caption passed through to
+#'   [kableExtra::kable()]. Same semantics as [statgl_crosstable()]'s
+#'   `.caption`.
+#' @param .bold_rows Optional specification of rows to render in bold.
+#'   Same shape as [statgl_crosstable()]'s `.bold_rows`:
+#'   * an integer vector of row positions,
+#'   * a character vector matching values in the **first** column of the
+#'     printed table (after `.row_group` is stripped out), or
+#'   * a one-sided formula (e.g. `~ year == max(year)`) evaluated on the
+#'     formatted data frame; it must return a logical vector.
 #' @param .as_html Logical; if `FALSE` (default), returns an
 #'   `htmlwidget` that renders correctly in every context — the
 #'   RStudio Viewer when called interactively, knitr / Quarto chunks,
@@ -75,6 +86,8 @@ statgl_table <- function(
   .replace_nas = NULL,
   .first_col_width = NULL,
   .bottom_rule = TRUE,
+  .caption = NULL,
+  .bold_rows = NULL, # numeric / character / formula
   .as_html = FALSE
 ) {
   if (!is.data.frame(df)) {
@@ -171,9 +184,10 @@ statgl_table <- function(
   # --- build base kable (after dropping group column) ----------------------
   k <- kableExtra::kable(
     df,
-    format = "html",
-    align = aligns,
-    escape = FALSE
+    format  = "html",
+    align   = aligns,
+    escape  = FALSE,
+    caption = .caption
   )
 
   # --- group rows: exact same pattern as statgl_crosstable -----------------
@@ -201,6 +215,14 @@ statgl_table <- function(
 
   if (!is.null(.first_col_width)) {
     k <- kableExtra::column_spec(k, 1, width = .first_col_width)
+  }
+
+  # --- Bold rows -----------------------------------------------------------
+  # Match against the printed df's first column (typically the row label
+  # column). The row_group column has already been removed at this point.
+  bold_idx <- resolve_bold_rows(.bold_rows, df, names(df)[1])
+  if (length(bold_idx)) {
+    k <- kableExtra::row_spec(k, bold_idx, bold = TRUE)
   }
 
   if (isTRUE(.bottom_rule) && nrow(df) > 0) {
@@ -260,6 +282,11 @@ statgl_table <- function(
 #' @param .row_label Optional label spanning all stub columns in the top header
 #'   row. If `NULL` or `""`, a blank label is used; when blank, the stub column
 #'   names are also hidden.
+#' @param .digits Optional number of significant digits passed to
+#'   [format()] for numeric columns. Defaults to `NULL` (use
+#'   `format()`'s default precision); set explicitly for consistent
+#'   rounding. Same semantics as [statgl_table()]'s `.digits`, but with
+#'   a `NULL` default so existing PXWeb-style output isn't re-rounded.
 #' @param .big.mark Thousands separator used for numeric formatting.
 #' @param .decimal.mark Decimal separator used for numeric formatting.
 #' @param .caption Optional table caption passed to **kableExtra**.
@@ -295,6 +322,10 @@ statgl_table <- function(
 #'   warning.
 #' @param .first_col_width Optional CSS width passed to
 #'   [kableExtra::column_spec()] for the first column (e.g. `"8em"`).
+#' @param .bottom_rule Logical; if `TRUE` (default), draws a thick
+#'   bottom border on the last data row. Matches the Statistics
+#'   Greenland design convention. Same semantics as
+#'   [statgl_table()]'s `.bottom_rule`.
 #' @param .as_html Logical; if `FALSE` (default), returns an
 #'   `htmlwidget` that renders correctly in every context — the
 #'   RStudio Viewer when called interactively, knitr / Quarto chunks,
@@ -324,6 +355,7 @@ statgl_crosstable <- function(
   .row = NULL, # tidyselect spec; can be 1+ columns
   .row_group = NULL, # tidyselect spec; one or more stub cols to group
   .row_label = NULL, # label spanning all stub cols
+  .digits = NULL, # NULL = use format()'s default; otherwise passed through
   .big.mark = ".",
   .decimal.mark = ",",
   .caption = NULL,
@@ -335,6 +367,7 @@ statgl_crosstable <- function(
   .replace_0s = FALSE, # FALSE / TRUE (en-dash) / custom string
   .replace_nas = NULL, # NULL / custom string (TRUE deprecated)
   .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 ) {
   if (!is.data.frame(df)) {
@@ -478,15 +511,13 @@ statgl_crosstable <- function(
   # ---- 5) Numeric formatting ---------------------------------------
   num_cols <- names(df_wide)[vapply(df_wide, is.numeric, logical(1))]
   if (length(num_cols) > 0) {
+    fmt_args <- list(big.mark = .big.mark, decimal.mark = .decimal.mark)
+    if (!is.null(.digits)) fmt_args$digits <- .digits
     df_wide <- df_wide %>%
       dplyr::mutate(
         dplyr::across(
           dplyr::all_of(num_cols),
-          ~ format(
-            .x,
-            big.mark = .big.mark,
-            decimal.mark = .decimal.mark
-          )
+          ~ do.call(format, c(list(.x), fmt_args))
         )
       )
   }
@@ -626,28 +657,18 @@ statgl_crosstable <- function(
   }
 
   # ---- 8) Bold rows (using df_logic, not the blanked display copy) --
-  bold_idx <- integer(0)
-
-  if (!is.null(.bold_rows)) {
-    if (is.numeric(.bold_rows)) {
-      bold_idx <- .bold_rows
-    } else if (is.character(.bold_rows)) {
-      bold_idx <- which(df_logic[[primary_row_name]] %in% .bold_rows)
-    } else if (rlang::is_formula(.bold_rows)) {
-      expr <- rlang::f_rhs(.bold_rows)
-      mask <- rlang::eval_tidy(expr, data = df_logic)
-      if (!is.logical(mask)) {
-        stop(
-          "`.bold_rows` formula must evaluate to a logical vector.",
-          call. = FALSE
-        )
-      }
-      bold_idx <- which(mask %in% TRUE)
-    }
-  }
-
+  bold_idx <- resolve_bold_rows(.bold_rows, df_logic, primary_row_name)
   if (length(bold_idx)) {
     kb <- kableExtra::row_spec(kb, bold_idx, bold = TRUE)
+  }
+
+  # ---- 8a) Bottom rule (SG design convention) ---------------------------
+  if (isTRUE(.bottom_rule) && nrow(df_wide) > 0) {
+    kb <- kableExtra::row_spec(
+      kb,
+      nrow(df_wide),
+      extra_css = "border-bottom: 2px solid #000;"
+    )
   }
 
   # ---- 9) Mobile hiding (.hide_mobile, CSS) --------------------------------
@@ -892,4 +913,33 @@ resolve_replace_nas <- function(x) {
     call. = FALSE
   )
   NULL
+}
+
+# Resolve a `.bold_rows` spec into integer row positions for
+# kableExtra::row_spec(). Shared between statgl_table() and
+# statgl_crosstable() so the three accepted shapes stay in sync:
+#   - integer / numeric vector: positions (slice-style)
+#   - character vector: values to match in `primary_col` of `df`
+#   - one-sided formula: evaluated on `df`, must return a logical
+# `df` is the printed data frame (post-formatting); `primary_col`
+# is the column to match character vectors against — typically the
+# first stub / label column.
+resolve_bold_rows <- function(bold_rows, df, primary_col) {
+  if (is.null(bold_rows)) return(integer(0))
+  if (is.numeric(bold_rows)) return(as.integer(bold_rows))
+  if (is.character(bold_rows)) {
+    return(which(df[[primary_col]] %in% bold_rows))
+  }
+  if (rlang::is_formula(bold_rows)) {
+    expr <- rlang::f_rhs(bold_rows)
+    mask <- rlang::eval_tidy(expr, data = df)
+    if (!is.logical(mask)) {
+      stop(
+        "`.bold_rows` formula must evaluate to a logical vector.",
+        call. = FALSE
+      )
+    }
+    return(which(mask %in% TRUE))
+  }
+  integer(0)
 }

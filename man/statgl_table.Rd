@@ -19,6 +19,8 @@ statgl_table(
   .replace_nas = NULL,
   .first_col_width = NULL,
   .bottom_rule = TRUE,
+  .caption = NULL,
+  .bold_rows = NULL,
   .as_html = FALSE
 )
 }
@@ -62,8 +64,23 @@ character string used as the replacement for \code{NA} (e.g. \code{".."}).}
 \item{.first_col_width}{Optional CSS width (e.g. \code{"12em"}) applied to the
 first column via \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}}.}
 
-\item{.bottom_rule}{Logical; if \code{TRUE}, draws a thick bottom border on the
-last data row.}
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), draws a thick bottom
+border on the last data row. Matches the Statistics Greenland design
+convention. Same semantics as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s \code{.bottom_rule}.}
+
+\item{.caption}{Optional table caption passed through to
+\code{\link[kableExtra:reexports]{kableExtra::kable()}}. Same semantics as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s
+\code{.caption}.}
+
+\item{.bold_rows}{Optional specification of rows to render in bold.
+Same shape as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s \code{.bold_rows}:
+\itemize{
+\item an integer vector of row positions,
+\item a character vector matching values in the \strong{first} column of the
+printed table (after \code{.row_group} is stripped out), or
+\item a one-sided formula (e.g. \code{~ year == max(year)}) evaluated on the
+formatted data frame; it must return a logical vector.
+}}
 
 \item{.as_html}{Logical; if \code{FALSE} (default), returns an
 \code{htmlwidget} that renders correctly in every context — the

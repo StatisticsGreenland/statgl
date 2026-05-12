@@ -391,6 +391,84 @@ test_that(".as_html = TRUE also carries the .hide_mobile CSS", {
   expect_match(out, "max-width: 768px", fixed = TRUE)
 })
 
+# ---- Pass 4: cross-pollinated params ----------------------------------------
+
+test_that("statgl_table accepts a .caption", {
+  out <- statgl_table(
+    data.frame(x = 1:2, y = c("a", "b")),
+    .caption = "My Caption",
+    .as_html = TRUE
+  )
+  expect_match(out, "My Caption", fixed = TRUE)
+})
+
+test_that("statgl_table .bold_rows accepts integer positions", {
+  df <- data.frame(label = c("a", "b", "c"), value = c(1, 2, 3))
+  out <- statgl_table(df, .bold_rows = 2, .as_html = TRUE)
+  # kableExtra::row_spec(..., bold = TRUE) emits inline `font-weight: bold;`.
+  expect_match(out, "font-weight: bold", fixed = TRUE)
+})
+
+test_that("statgl_table .bold_rows accepts a character vector matching first col", {
+  df <- data.frame(label = c("a", "b", "c"), value = c(1, 2, 3))
+  out <- statgl_table(df, .bold_rows = "b", .as_html = TRUE)
+  expect_match(out, "font-weight: bold", fixed = TRUE)
+})
+
+test_that("statgl_table .bold_rows accepts a one-sided formula", {
+  df <- data.frame(label = c("a", "b", "c"), value = c(1, 2, 3))
+  out <- statgl_table(df, .bold_rows = ~ value == "3", .as_html = TRUE)
+  expect_match(out, "font-weight: bold", fixed = TRUE)
+})
+
+test_that("statgl_crosstable applies a .bottom_rule by default", {
+  df <- make_long_df()
+  out <- statgl_crosstable(df, gender, .as_html = TRUE)
+  # The bottom rule is implemented as an inline border-bottom style.
+  expect_match(out, "border-bottom: 2px solid #000", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .bottom_rule = FALSE suppresses the bottom rule", {
+  df <- make_long_df()
+  out <- statgl_crosstable(df, gender, .bottom_rule = FALSE, .as_html = TRUE)
+  expect_no_match(out, "border-bottom: 2px solid #000", fixed = TRUE)
+})
+
+test_that("statgl_crosstable .digits is passed through to format()", {
+  df <- data.frame(
+    year   = c(2020L, 2021L),
+    gender = c("M", "K"),
+    value  = c(1234.567, 7654.321),
+    stringsAsFactors = FALSE
+  )
+  default <- statgl_crosstable(df, gender,              .as_html = TRUE)
+  digits3 <- statgl_crosstable(df, gender, .digits = 3, .as_html = TRUE)
+  # Passing .digits should change the rendered numbers — the exact
+  # output of format() depends on big.mark/decimal.mark interactions,
+  # so verifying "different" is more robust than asserting a literal.
+  expect_false(identical(default, digits3))
+  # And the original unrounded magnitude should disappear under digits = 3.
+  expect_no_match(digits3, "1234,567", fixed = TRUE)
+})
+
+test_that("resolve_bold_rows handles NULL / numeric / character / formula", {
+  resolve_bold_rows <- statgl:::resolve_bold_rows
+  df <- data.frame(label = c("a", "b", "c"), value = 1:3)
+  expect_equal(resolve_bold_rows(NULL, df, "label"), integer(0))
+  expect_equal(resolve_bold_rows(c(1L, 3L), df, "label"), c(1L, 3L))
+  expect_equal(resolve_bold_rows("b", df, "label"), 2L)
+  expect_equal(resolve_bold_rows(~ value > 1, df, "label"), c(2L, 3L))
+})
+
+test_that("resolve_bold_rows errors on non-logical formula result", {
+  resolve_bold_rows <- statgl:::resolve_bold_rows
+  df <- data.frame(label = "a", value = 1)
+  expect_error(
+    resolve_bold_rows(~ value + 1, df, "label"),
+    "logical vector"
+  )
+})
+
 # ---- Helper unit tests (offline, no kable rendering) -------------------------
 
 test_that("validate_drop is silent on well-formed input", {
