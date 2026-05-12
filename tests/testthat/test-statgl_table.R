@@ -20,12 +20,12 @@ test_that(".drop removes the matching column-group values", {
     .drop    = list(gender = "T"),
     .as_html = TRUE
   )
-  # Header for "T" should be gone; M and K remain.
-  # kableExtra renders column-group labels as `<div>VALUE</div>` inside
-  # the top header row.
-  expect_no_match(html, ">T</div>")
-  expect_match(html, ">M</div>")
-  expect_match(html, ">K</div>")
+  # Single grouping var -> values appear in col.names <th> cells
+  # (kableExtra space-pads cell contents). After .drop, the T column
+  # is removed entirely.
+  expect_no_match(html, "> T <", fixed = TRUE)
+  expect_match(html, "> M <", fixed = TRUE)
+  expect_match(html, "> K <", fixed = TRUE)
 })
 
 test_that(".drop with no matches still produces a (warned) table", {
@@ -39,9 +39,9 @@ test_that(".drop with no matches still produces a (warned) table", {
     "matched no columns"
   )
   # Original three columns are still there.
-  expect_match(out, ">M</div>")
-  expect_match(out, ">K</div>")
-  expect_match(out, ">T</div>")
+  expect_match(out, "> M <", fixed = TRUE)
+  expect_match(out, "> K <", fixed = TRUE)
+  expect_match(out, "> T <", fixed = TRUE)
 })
 
 # ---- statgl_crosstable: validation warnings ---------------------------------
@@ -89,8 +89,8 @@ test_that(".secondary still works but warns about deprecation", {
     class = "lifecycle_warning_deprecated"
   )
   # The deprecated path still drops the column.
-  expect_no_match(out, ">T</div>")
-  expect_match(out, ">M</div>")
+  expect_no_match(out, "> T <", fixed = TRUE)
+  expect_match(out, "> M <", fixed = TRUE)
 })
 
 test_that(".drop wins when both .drop and .secondary are supplied", {
@@ -105,8 +105,8 @@ test_that(".drop wins when both .drop and .secondary are supplied", {
     class = "lifecycle_warning_deprecated"
   )
   # Only "T" is dropped, M is preserved.
-  expect_no_match(out, ">T</div>")
-  expect_match(out, ">M</div>")
+  expect_no_match(out, "> T <", fixed = TRUE)
+  expect_match(out, "> M <", fixed = TRUE)
 })
 
 # ---- .replace_0s / .replace_nas unified shape -------------------------------
@@ -293,8 +293,10 @@ test_that("statgl_crosstable .hide_mobile emits CSS without dropping columns", {
   )
   expect_match(out, "max-width: 768px", fixed = TRUE)
   expect_match(out, "display: none",    fixed = TRUE)
-  # Unlike .drop, the T columns remain in the HTML (just CSS-hidden).
-  expect_match(out, ">T</div>")
+  # Unlike .drop, the T column remains in the HTML (just CSS-hidden).
+  # Single grouping var -> values are in col.names <th> cells, not in
+  # a spanning <div> header.
+  expect_match(out, "> T <", fixed = TRUE)
 })
 
 test_that("statgl_crosstable .hide_mobile warns on non-list shape", {
@@ -389,6 +391,70 @@ test_that(".as_html = TRUE also carries the .hide_mobile CSS", {
     .as_html     = TRUE
   )
   expect_match(out, "max-width: 768px", fixed = TRUE)
+})
+
+# ---- Nested column headers for 3+ grouping vars -----------------------------
+
+# Make a long-format df with a non-group column ("region") to serve as
+# the row stub — statgl_crosstable() requires at least one non-group,
+# non-value column to use as the row dimension.
+make_three_group_df <- function() {
+  expand.grid(
+    region = c("A", "B"),
+    time   = 2020:2021,
+    gender = c("M", "K"),
+    born   = c("Greenland", "Outside"),
+    stringsAsFactors = FALSE
+  ) |>
+    transform(value = seq_len(16))
+}
+
+test_that("3+ grouping vars produce nested headers, not dash-united labels", {
+  df <- make_three_group_df()
+  out <- statgl_crosstable(df, time, gender, born, .as_html = TRUE)
+  # Leaf labels (last grouping var = `born`) live in col.names <th>
+  # cells, space-padded by kableExtra.
+  expect_match(out, "> Greenland <", fixed = TRUE)
+  expect_match(out, "> Outside <",   fixed = TRUE)
+  # No dash-united labels — that was the old single-row behavior.
+  expect_no_match(out, "M – Greenland", fixed = TRUE)
+  expect_no_match(out, "K – Outside",   fixed = TRUE)
+  # Intermediate grouping value (gender) appears in a kableExtra
+  # spanning <div>.
+  expect_match(out, ">M</div>")
+  expect_match(out, ">K</div>")
+})
+
+test_that("2 grouping vars still produce one spanning header (no regression)", {
+  df <- data.frame(
+    region = rep(c("A", "B"), each = 6),
+    time   = rep(2020:2021, 6),
+    gender = rep(c("M", "K", "T"), each = 2, times = 2),
+    value  = 1:12,
+    stringsAsFactors = FALSE
+  )
+  out <- statgl_crosstable(df, gender, time, .as_html = TRUE)
+  # gender values appear in the spanning <div> header.
+  expect_match(out, ">M</div>")
+  expect_match(out, ">K</div>")
+  expect_match(out, ">T</div>")
+  # time values appear in col.names <th> (leaf row, space-padded).
+  expect_match(out, "> 2020 <", fixed = TRUE)
+  expect_match(out, "> 2021 <", fixed = TRUE)
+})
+
+test_that("1 grouping var emits no spanning header above the col.names", {
+  df <- data.frame(
+    time   = c(2020, 2021, 2020, 2021, 2020, 2021),
+    gender = rep(c("M", "K", "T"), each = 2),
+    value  = 1:6,
+    stringsAsFactors = FALSE
+  )
+  out <- statgl_crosstable(df, gender, .as_html = TRUE)
+  # Leaf values present in col.names <th> (space-padded by kableExtra);
+  # no spanning <div>X</div> row above (loop is a no-op for ngroups=1).
+  expect_match(out, "> M <", fixed = TRUE)
+  expect_no_match(out, ">M</div>")
 })
 
 # ---- Pass 4: cross-pollinated params ----------------------------------------

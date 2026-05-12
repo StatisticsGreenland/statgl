@@ -8,6 +8,13 @@
 
 ## New features
 
+* `statgl_crosstable()` now produces **nested column headers** when
+  3+ grouping variables are passed. Previously the second-and-later
+  group values were dash-united into a single label row (e.g.
+  `"Men – Born outside Greenland"`); now each non-leaf grouping
+  level becomes its own spanning header row via
+  `kableExtra::add_header_above()`, with the leaf grouping variable's
+  values as the `col.names`. The two-variable case is unchanged.
 * `statgl_table()` and `statgl_crosstable()` now share a common set of
   styling arguments — features that previously lived on only one of
   the two functions are available on both:
@@ -116,6 +123,10 @@
 
 ## Behavior changes (continued)
 
+* `statgl_crosstable()` with a **single** grouping variable no longer
+  emits a redundant spanning header row above the column names — the
+  spanning row used to duplicate the `col.names`. The 2-variable
+  layout is unchanged.
 * `statgl_crosstable()`'s value-based column filter (`.drop`) now
   warns clearly when the input is malformed (not a named list), names
   a dimension that isn't a column group, or supplies values that match

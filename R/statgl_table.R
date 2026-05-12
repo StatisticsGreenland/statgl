@@ -529,8 +529,10 @@ statgl_crosstable <- function(
   orig_cols <- names(df_wide)
   wide_cols <- setdiff(orig_cols, row_names)
 
-  # labels shown in the second header row (e.g. "I alt", "Kvinder", ...)
-  display_labels <- sub("^[^\u2013]+\\s*\u2013\\s*", "", wide_cols)
+  # display_labels are computed below from combo_df (after any .drop
+  # filter) so they always use the LEAF grouping variable's values
+  # directly. This is what lets 3+ grouping vars produce nested
+  # column headers rather than dash-united labels.
 
   # build a combo data frame describing each column group combination,
   # aligned to wide_cols
@@ -555,43 +557,24 @@ statgl_crosstable <- function(
     keep_mask <- !sec_mask
 
     wide_cols <- wide_cols[keep_mask]
-    display_labels <- display_labels[keep_mask]
     combo_df <- combo_df[keep_mask, , drop = FALSE]
 
     df_wide <- df_wide[, c(row_names, wide_cols), drop = FALSE]
     df_logic <- df_logic[, c(row_names, wide_cols), drop = FALSE]
   }
 
-  # after dropping secondary columns, recompute group_counts to match
-  group_counts <- combo_df %>%
-    dplyr::count(!!primary_group, name = "n")
-
-  primary_name <- rlang::quo_name(primary_group)
+  # Leaf labels (col.names): values of the LAST grouping variable,
+  # one per remaining column. Any non-leaf grouping levels become
+  # spanning header rows below (via kableExtra::add_header_above).
+  ngroups <- length(groups)
+  last_group_name <- rlang::quo_name(groups[[ngroups]])
+  display_labels <- as.character(combo_df[[last_group_name]])
 
   stub_span <- length(row_names)
   row_label_header <- if (is.null(.row_label) || .row_label == "") {
     " "
   } else {
     .row_label
-  }
-
-  header <- c(
-    stats::setNames(stub_span, row_label_header),
-    stats::setNames(
-      group_counts$n,
-      as.character(group_counts[[primary_name]])
-    )
-  )
-
-  if (sum(header) != ncol(df_wide)) {
-    stop(
-      sprintf(
-        "Header span (%d) does not match number of columns in table (%d).",
-        sum(header),
-        ncol(df_wide)
-      ),
-      call. = FALSE
-    )
   }
 
   # ---- 6a) Precompute group_rows info & blank group column in display ----
@@ -637,8 +620,61 @@ statgl_crosstable <- function(
     kableExtra::kable_styling(
       bootstrap_options = c("striped", "hover", "condensed", "responsive"),
       full_width = FALSE
-    ) %>%
-    kableExtra::add_header_above(header = header)
+    )
+
+  # Stack one spanning header row per non-leaf grouping level, from
+  # innermost out. For 2 grouping vars this is a single row (the
+  # previous behavior); for 3+ it produces a nested header instead of
+  # dash-united labels. For 1 grouping var the loop is a no-op and
+  # only `col.names` (the leaf values) appear.
+  #
+  # We compute the counts via base R rather than dplyr::count() so the
+  # behavior is identical regardless of dplyr version (count's .drop
+  # default has shifted across releases) and so backtick-quoted column
+  # names like `place of birth` are looked up as plain combo_df
+  # columns — no quosure / data-masking surprises.
+  group_names_all <- vapply(groups, rlang::quo_name, character(1))
+
+  for (k in rev(seq_len(ngroups - 1))) {
+    k_names  <- group_names_all[1:k]
+    k_name   <- group_names_all[k]
+
+    # Run-length encode the contiguous (groups[1:k]) combinations
+    # in combo_df. combo_df is arranged by groups[1], groups[2], ... so
+    # rows sharing a (groups[1:k]) value are contiguous and rle gives
+    # the right spans and labels in one shot.
+    key_chr <- do.call(
+      paste,
+      c(lapply(k_names, function(nm) as.character(combo_df[[nm]])),
+        list(sep = ""))
+    )
+    rle_k <- rle(key_chr)
+    span_idx <- cumsum(rle_k$lengths)
+    k_labels <- as.character(combo_df[[k_name]])[span_idx]
+    k_spans  <- rle_k$lengths
+
+    # kableExtra::add_header_above() collapses an empty-string label
+    # to a 1-column span regardless of the value, so we use a single
+    # space (the same convention as row_label_header below) for the
+    # stub cell on every level except the topmost.
+    k_stub_label <- if (k == 1L) row_label_header else " "
+    k_header <- c(
+      stats::setNames(stub_span, k_stub_label),
+      stats::setNames(k_spans,   k_labels)
+    )
+
+    if (sum(k_header) != ncol(df_wide)) {
+      stop(
+        sprintf(
+          "Header span (%d) does not match number of columns in table (%d).",
+          sum(k_header), ncol(df_wide)
+        ),
+        call. = FALSE
+      )
+    }
+
+    kb <- kableExtra::add_header_above(kb, header = k_header)
+  }
   # ---- 7b) Apply group_rows headers -------------------------------
   if (!is.null(grp_info)) {
     for (i in seq_along(grp_info$labels)) {
