@@ -105,23 +105,34 @@ Highcharts colours are used.}
 \item{pyramid}{Pyramid layout for two-group charts (e.g. population
 pyramids). Default \code{NULL} (or \code{FALSE}) draws a normal chart. Other forms:
 \itemize{
-\item \code{TRUE} -- enable pyramid mode using the column passed to \verb{group =} as the
-splitting variable. The "left" side (whose values are mirrored across
-zero) is chosen by: (a) factor levels if the group column is a factor,
-(b) a male-label heuristic for character columns
-(\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...), or (c) first appearance otherwise.
-\item A length-2 character vector such as \code{c("M", "K")} setting the left and
-right levels explicitly.
+\item \code{TRUE} -- enable pyramid mode using the column passed to \verb{group =} as
+the splitting variable. Convention: men go on the right. Side ordering
+is chosen by (a) a male-label heuristic
+(\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...) putting men on the right,
+(b) a female-label heuristic putting women on the left, (c) factor
+levels if the group column is a factor, or (d) first appearance
+otherwise. When \code{TRUE}, the group column must resolve to exactly two
+distinct values.
+\item A single string such as \code{"M"} -- treated as the men/right value; the
+other side is inferred from the data (the single remaining value, or
+the one matching the female-label heuristic if more than one remains).
+\item A length-2 character vector \code{c(left, right)} such as \code{c("K", "M")}
+setting the sides explicitly.
 }
 
-Pyramid requires \verb{group =} and that the group column resolves to exactly
-two distinct values present in the data. It composes with any \code{type}; if
-\code{type} is not supplied it defaults to \code{"bar"} (rather than the usual
-\code{"line"} inference for integer ages). For \code{"bar"} and \code{"column"},
-\code{stacking} defaults to \code{"normal"} so the two sides share the zero
-baseline; for \code{"area"}, \code{"line"} and friends it is left unset, since
-each series is already drawn from baseline 0 and forcing stacking on a
-mixed-sign area chart causes Highcharts to clip the negated side.
+When \code{pyramid} is a string or a length-2 vector, rows whose \code{group}
+value isn't one of the named levels are silently dropped (useful for
+PXWeb tables that include \code{"I alt"} / \code{"T"} totals alongside the two
+sex codes). Series and legend order are then locked to pyramid order so
+the legend reads left -> right with men on the right.
+
+It composes with any \code{type}; if \code{type} is not supplied it defaults to
+\code{"bar"} (rather than the usual \code{"line"} inference for integer ages).
+For \code{"bar"} and \code{"column"}, \code{stacking} defaults to \code{"normal"} so the
+two sides share the zero baseline; for \code{"area"}, \code{"line"} and friends
+it is left unset, since each series is already drawn from baseline 0
+and forcing stacking on a mixed-sign area chart causes Highcharts to
+clip the negated side.
 
 Pyramid always renders horizontally (categorical axis vertical, value
 axis horizontal extending left/right of zero -- the conventional

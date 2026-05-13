@@ -58,22 +58,33 @@
 #'   Highcharts colours are used.
 #' @param pyramid Pyramid layout for two-group charts (e.g. population
 #'   pyramids). Default `NULL` (or `FALSE`) draws a normal chart. Other forms:
-#'   * `TRUE` -- enable pyramid mode using the column passed to `group =` as the
-#'     splitting variable. The "left" side (whose values are mirrored across
-#'     zero) is chosen by: (a) factor levels if the group column is a factor,
-#'     (b) a male-label heuristic for character columns
-#'     (`M`/`M\u00e6nd`/`Men`/`Angutit`/...), or (c) first appearance otherwise.
-#'   * A length-2 character vector such as `c("M", "K")` setting the left and
-#'     right levels explicitly.
+#'   * `TRUE` -- enable pyramid mode using the column passed to `group =` as
+#'     the splitting variable. Convention: men go on the right. Side ordering
+#'     is chosen by (a) a male-label heuristic
+#'     (`M`/`M\u00e6nd`/`Men`/`Angutit`/...) putting men on the right,
+#'     (b) a female-label heuristic putting women on the left, (c) factor
+#'     levels if the group column is a factor, or (d) first appearance
+#'     otherwise. When `TRUE`, the group column must resolve to exactly two
+#'     distinct values.
+#'   * A single string such as `"M"` -- treated as the men/right value; the
+#'     other side is inferred from the data (the single remaining value, or
+#'     the one matching the female-label heuristic if more than one remains).
+#'   * A length-2 character vector `c(left, right)` such as `c("K", "M")`
+#'     setting the sides explicitly.
 #'
-#'   Pyramid requires `group =` and that the group column resolves to exactly
-#'   two distinct values present in the data. It composes with any `type`; if
-#'   `type` is not supplied it defaults to `"bar"` (rather than the usual
-#'   `"line"` inference for integer ages). For `"bar"` and `"column"`,
-#'   `stacking` defaults to `"normal"` so the two sides share the zero
-#'   baseline; for `"area"`, `"line"` and friends it is left unset, since
-#'   each series is already drawn from baseline 0 and forcing stacking on a
-#'   mixed-sign area chart causes Highcharts to clip the negated side.
+#'   When `pyramid` is a string or a length-2 vector, rows whose `group`
+#'   value isn't one of the named levels are silently dropped (useful for
+#'   PXWeb tables that include `"I alt"` / `"T"` totals alongside the two
+#'   sex codes). Series and legend order are then locked to pyramid order so
+#'   the legend reads left -> right with men on the right.
+#'
+#'   It composes with any `type`; if `type` is not supplied it defaults to
+#'   `"bar"` (rather than the usual `"line"` inference for integer ages).
+#'   For `"bar"` and `"column"`, `stacking` defaults to `"normal"` so the
+#'   two sides share the zero baseline; for `"area"`, `"line"` and friends
+#'   it is left unset, since each series is already drawn from baseline 0
+#'   and forcing stacking on a mixed-sign area chart causes Highcharts to
+#'   clip the negated side.
 #'
 #'   Pyramid always renders horizontally (categorical axis vertical, value
 #'   axis horizontal extending left/right of zero -- the conventional
@@ -222,8 +233,9 @@ statgl_plot <- function(
     }
     if (!isTRUE(pyramid) && !is.character(pyramid)) {
       stop(
-        "`pyramid` must be TRUE/FALSE/NULL or a length-2 character vector ",
-        "like c(\"M\", \"K\").",
+        "`pyramid` must be TRUE/FALSE/NULL, a single string naming the ",
+        "men/right value (e.g. \"M\"), or a length-2 character vector ",
+        "like c(\"K\", \"M\").",
         call. = FALSE
       )
     }
@@ -245,9 +257,21 @@ statgl_plot <- function(
       group_name  = group_name
     )
 
-    # Mirror the left side across zero. We work on a local copy of df so the
-    # caller's data is untouched.
-    df <- df
+    # Drop rows whose group value isn't one of the two pyramid levels.
+    # This silently removes totals like "I alt" / "T" when the user passed
+    # `pyramid = c("K","M")` or `pyramid = "M"`. We work on a local copy
+    # of df so the caller's data is untouched.
+    df <- df[as.character(df[[group_name]]) %in% pyramid_levels, ,
+             drop = FALSE]
+
+    # Lock the group column's order to c(left, right) so hchart() builds
+    # series in pyramid order; this also makes the legend read left -> right.
+    df[[group_name]] <- factor(
+      as.character(df[[group_name]]),
+      levels = pyramid_levels
+    )
+
+    # Mirror the left side across zero.
     is_left <- as.character(df[[group_name]]) == pyramid_levels[1]
     df[[y_name]][is_left] <- -df[[y_name]][is_left]
 
@@ -633,6 +657,14 @@ statgl_plot <- function(
     legend_args$enabled <- FALSE
   }
 
+  # Highcharts reverses the legend on inverted/bar charts so it reads top to
+  # bottom with the bars. For pyramids we already locked the series order to
+  # c(left, right) via factor levels, so force `reversed = FALSE` to keep
+  # the legend reading left -> right in pyramid order (men on the right).
+  if (pyramid_on) {
+    legend_args$reversed <- FALSE
+  }
+
   chart <- do.call(highcharter::hc_legend, c(list(chart), legend_args))
 
   chart <- htmlwidgets::onRender(
@@ -693,44 +725,91 @@ statgl_plot <- function(
   chart
 }
 
-# Internal: known male-coded labels across the languages Statistics Greenland
-# uses. Used by `pyramid = TRUE` to default males to the left side when the
-# group column is character (factor users get control via factor levels).
+# Internal: sex-coded labels across the languages Statistics Greenland uses.
+# Used by `pyramid = TRUE` to put males on the right and females on the left
+# when the group column doesn't otherwise dictate order. Factor levels are
+# still respected if no sex-coded label is found.
 .statgl_male_labels <- c(
   "M", "M\u00e6nd", "Maend", "Mand", "Men", "Male",
   "Angutit", "Angut"
+)
+.statgl_female_labels <- c(
+  "K", "Kvinder", "Kvinde", "Women", "Woman", "Female", "F",
+  "Arnat", "Arnaq"
 )
 
 # Internal: resolve `pyramid` argument + the group column's values into a
 # length-2 character vector c(left, right).
 #
+# Convention: men go on the right when we can detect them. Explicit length-2
+# input is trusted as-is (user picked the order). length-1 is the
+# "men"/right value and the other side is inferred from the data.
+#
 # Errors with friendly messages on:
-#   - pyramid not TRUE/FALSE/NULL/length-2 character
-#   - group column resolving to != 2 distinct present values
+#   - pyramid not TRUE/FALSE/NULL/length-1/length-2 character
+#   - group column resolving to != 2 distinct present values (pyramid = TRUE)
 #   - explicit pyramid levels not all present in the data
+#   - length-1 pyramid ambiguous (more than 2 distinct group values present
+#     and no female label among the others)
 .resolve_pyramid_levels <- function(pyramid, group_vals, group_name) {
   present <- unique(as.character(group_vals[!is.na(group_vals)]))
 
-  # Explicit length-2 character: trust the user but verify both levels exist.
   if (is.character(pyramid)) {
-    if (length(pyramid) != 2L) {
+    # Explicit length-2: trust the user, verify both levels exist.
+    if (length(pyramid) == 2L) {
+      missing <- setdiff(pyramid, present)
+      if (length(missing) > 0L) {
+        stop(
+          "`pyramid` levels not found in `", group_name, "`: ",
+          paste0("\"", missing, "\"", collapse = ", "),
+          ". Present values: ",
+          paste0("\"", present, "\"", collapse = ", "), ".",
+          call. = FALSE
+        )
+      }
+      return(pyramid)
+    }
+
+    # Length-1: this is the men/right value. Find the other side.
+    if (length(pyramid) == 1L) {
+      if (!pyramid %in% present) {
+        stop(
+          "`pyramid` value \"", pyramid, "\" not found in `", group_name,
+          "`. Present values: ",
+          paste0("\"", present, "\"", collapse = ", "), ".",
+          call. = FALSE
+        )
+      }
+      others <- setdiff(present, pyramid)
+      if (length(others) == 0L) {
+        stop(
+          "`pyramid = \"", pyramid, "\"` needs at least one other value ",
+          "in `", group_name, "`; only this value is present.",
+          call. = FALSE
+        )
+      }
+      if (length(others) == 1L) {
+        return(c(others, pyramid))
+      }
+      # Multiple "others" -- disambiguate via female-label heuristic.
+      female_match <- intersect(.statgl_female_labels, others)
+      if (length(female_match) == 1L) {
+        return(c(female_match, pyramid))
+      }
       stop(
-        "`pyramid` must be TRUE or a length-2 character vector ",
-        "(left, right). Got length ", length(pyramid), ".",
+        "`pyramid = \"", pyramid, "\"` is ambiguous: multiple other ",
+        "values in `", group_name, "` (",
+        paste0("\"", others, "\"", collapse = ", "),
+        "). Pass `pyramid = c(left, right)` to disambiguate.",
         call. = FALSE
       )
     }
-    missing <- setdiff(pyramid, present)
-    if (length(missing) > 0L) {
-      stop(
-        "`pyramid` levels not found in `", group_name, "`: ",
-        paste0("\"", missing, "\"", collapse = ", "),
-        ". Present values: ",
-        paste0("\"", present, "\"", collapse = ", "), ".",
-        call. = FALSE
-      )
-    }
-    return(pyramid)
+
+    stop(
+      "`pyramid` must be TRUE, a single string naming the men/right value, ",
+      "or a length-2 character vector. Got length ", length(pyramid), ".",
+      call. = FALSE
+    )
   }
 
   # pyramid == TRUE: derive ordering from the data.
@@ -741,20 +820,29 @@ statgl_plot <- function(
       if (length(present) > 0L)
         paste0(" (", paste0("\"", present, "\"", collapse = ", "), ")")
       else "",
-      ". Pass `pyramid = c(\"left\", \"right\")` to set them explicitly.",
+      ". Pass `pyramid = c(\"left\", \"right\")` (or a single \"men\" ",
+      "value) to set them explicitly.",
       call. = FALSE
     )
   }
 
+  # Men on the right when we can detect them, regardless of factor/character.
+  male_match <- intersect(.statgl_male_labels, present)
+  if (length(male_match) == 1L) {
+    return(c(setdiff(present, male_match), male_match))
+  }
+
+  # Women on the left as a secondary heuristic.
+  female_match <- intersect(.statgl_female_labels, present)
+  if (length(female_match) == 1L) {
+    return(c(female_match, setdiff(present, female_match)))
+  }
+
+  # No sex detection -- fall back to factor levels or first-appearance order.
   if (is.factor(group_vals)) {
     lv <- levels(group_vals)
     lv <- lv[lv %in% present]
     return(lv)
-  }
-
-  male_match <- intersect(.statgl_male_labels, present)
-  if (length(male_match) == 1L) {
-    return(c(male_match, setdiff(present, male_match)))
   }
 
   present
