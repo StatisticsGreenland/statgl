@@ -1,4 +1,4 @@
-# statgl (development version)
+# statgl 0.5.2
 
 This release is a substantial refactor of `statgl_table()` and
 `statgl_crosstable()`: their argument surfaces are now largely shared
