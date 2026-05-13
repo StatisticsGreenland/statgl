@@ -7,19 +7,23 @@
 statgl_crosstable(
   df,
   ...,
-  .value = value,
+  .value = NULL,
   .row = NULL,
   .row_group = NULL,
   .row_label = NULL,
+  .digits = NULL,
   .big.mark = ".",
   .decimal.mark = ",",
   .caption = NULL,
   .year_col = NULL,
   .bold_rows = NULL,
+  .drop = NULL,
   .secondary = NULL,
+  .hide_mobile = NULL,
   .replace_0s = FALSE,
-  .replace_nas = FALSE,
+  .replace_nas = NULL,
   .first_col_width = NULL,
+  .bottom_rule = TRUE,
   .as_html = FALSE
 )
 }
@@ -30,7 +34,16 @@ statgl_crosstable(
 \code{haendelsestype}). The first group becomes the top-level header; remaining
 groups form sub-headers.}
 
-\item{.value}{Column used for the cell values (default \code{value}).}
+\item{.value}{Column used for the cell values, given as a bare
+symbol, a string, or any tidyselect expression that resolves to
+exactly one column. The default \code{NULL} means \strong{auto}: if \code{df} has
+a \code{value} column (the convention produced by \code{\link[=statgl_fetch]{statgl_fetch()}}) it
+is used; otherwise the function counts rows via \code{\link[dplyr:context]{dplyr::n()}} per
+\verb{groups × row} combination and emits a message. To compute other
+per-cell statistics (means, sums, etc.), pre-aggregate with
+\code{\link[dplyr:summarise]{dplyr::summarise()}} before piping into \code{statgl_crosstable()}.
+Passing \code{.value} to a column that doesn't exist, or to an
+expression that selects more than one column, is an error.}
 
 \item{.row}{Tidyselect specification of one or more \strong{row stub} columns.
 These are shown on the left of the table. If \code{NULL}, all columns not used
@@ -44,6 +57,12 @@ repeated values in that column are hidden inside the table body.}
 \item{.row_label}{Optional label spanning all stub columns in the top header
 row. If \code{NULL} or \code{""}, a blank label is used; when blank, the stub column
 names are also hidden.}
+
+\item{.digits}{Optional number of significant digits passed to
+\code{\link[=format]{format()}} for numeric columns. Defaults to \code{NULL} (use
+\code{format()}'s default precision); set explicitly for consistent
+rounding. Same semantics as \code{\link[=statgl_table]{statgl_table()}}'s \code{.digits}, but with
+a \code{NULL} default so existing PXWeb-style output isn't re-rounded.}
 
 \item{.big.mark}{Thousands separator used for numeric formatting.}
 
@@ -62,31 +81,55 @@ should be converted to character to avoid formatting like \verb{2,024}.}
 table; it must return a logical vector.
 }}
 
-\item{.secondary}{Optional named list specifying which \strong{column groups}
-should be treated as secondary and dropped from the table. Each element
-should be a vector of values for a grouping variable used in \code{...}, e.g.
+\item{.drop}{Optional named list specifying which \strong{column groups}
+should be dropped from the table. Each element should be a vector of
+values for a grouping variable used in \code{...}, e.g.
 \code{list(gender = "Total", citydistrict = "Total")}. Any column whose
-column-header combination contains one of these values is removed from the
-output. Values referring to non-column variables are silently ignored.}
+column-header combination contains one of these values is removed from
+the output. A warning is issued if a name doesn't match a known
+column-group dimension or if values match no rows, so typos and
+value-mismatches surface clearly.}
 
-\item{.replace_0s}{Either \code{FALSE} (no special handling), \code{TRUE} (replace
-literal \code{"0"} with \code{"-"}), or a single character string used as a custom
-replacement for \code{"0"}.}
+\item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.drop}
+instead. Same shape and semantics.}
 
-\item{.replace_nas}{Either \code{FALSE} (leave \code{NA} as is), \code{TRUE} (replace \code{NA}
-with \code{"."}), or a single character string used as a custom replacement for
-\code{NA}.}
+\item{.hide_mobile}{Optional named list of \code{column_group = values_to_hide}
+(same shape as \code{.drop}) identifying column groups to \strong{visually hide
+on small screens} via a CSS media query (\verb{max-width: 768px}). Unlike
+\code{.drop}, the columns remain in the rendered HTML — they're just hidden
+on narrow viewports. Validated the same way as \code{.drop}, so typos in
+dimension names or values surface as warnings.}
+
+\item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
+\code{0} with an en-dash), or a single character string used as a custom
+replacement.}
+
+\item{.replace_nas}{\code{NULL} (default; no replacement) or a single
+character string used as the replacement for \code{NA} (e.g. \code{"."}).
+\code{TRUE} is accepted as a deprecated alias for \code{"."} and emits a
+warning.}
 
 \item{.first_col_width}{Optional CSS width passed to
 \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}} for the first column (e.g. \code{"8em"}).}
 
-\item{.as_html}{Logical; if \code{FALSE} (default) returns a \code{kableExtra} table
-object; if \code{TRUE}, returns a single HTML string.}
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), draws a thick
+bottom border on the last data row. Matches the Statistics
+Greenland design convention. Same semantics as
+\code{\link[=statgl_table]{statgl_table()}}'s \code{.bottom_rule}.}
+
+\item{.as_html}{Logical; if \code{FALSE} (default), returns an
+\code{htmlwidget} that renders correctly in every context — the
+RStudio Viewer when called interactively, knitr / Quarto chunks,
+and Quarto shortcode parameters — matching the behavior of
+\code{\link[=statgl_plot]{statgl_plot()}}. If \code{TRUE}, returns a plain length-1 character
+vector instead; kept as an escape hatch for environments that
+can't handle widgets.}
 }
 \value{
-If \code{.as_html = FALSE}, a \code{knitr_kable} / \code{kableExtra} object.
-
-If \code{.as_html = TRUE}, a length-1 character vector containing HTML.
+An \code{htmlwidget} object by default (wrapping the rendered
+table HTML), or a length-1 character vector when
+\code{.as_html = TRUE}. In both cases the HTML includes a \verb{<style>}
+block when \code{.hide_mobile} is in play.
 }
 \description{
 Build a wide crosstable with grouped column headers and formatted numeric

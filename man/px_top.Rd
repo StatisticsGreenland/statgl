@@ -2,11 +2,14 @@
 % Please edit documentation in R/statgl_fetch.R
 \name{px_top}
 \alias{px_top}
+\alias{top}
 \alias{px_all}
 \alias{px_agg}
 \title{Fetch helpers}
 \usage{
 px_top(top_n = 1)
+
+top(top_n = 1)
 
 px_all(pattern = "*")
 
@@ -25,17 +28,23 @@ values}
 \item{...}{Values selected from aggregation}
 }
 \value{
-grep like search result
+A length-1 (or longer) value with a \code{.px_filter} attribute,
+suitable for use as a selection in \code{\link[=statgl_fetch]{statgl_fetch()}}.
 }
 \description{
 Helper functions to make custom filters in pxweb API queries:
 }
 \details{
 \itemize{
-\item \code{\link[=px_top]{px_top()}}: API returns the the top n values provided
-\item \code{\link[=px_all]{px_all()}}: API returns all values, matching a wildcard pattern
-\item \code{\link[=px_agg]{px_agg()}}; Instructs API to use aggregations, and which values to select.
+\item \code{\link[=px_top]{px_top()}} / \code{\link[=top]{top()}}: API returns the top n values provided
+\item \code{\link[=px_all]{px_all()}}: API returns all values, matching a wildcard pattern.
+A length-1 character scalar containing \code{*} or \verb{?} passed directly
+in a \code{\link[=statgl_fetch]{statgl_fetch()}} selection is auto-wrapped via \code{\link[=px_all]{px_all()}},
+so \code{time = "*0"} is shorthand for \code{time = px_all("*0")}.
+\item \code{\link[=px_agg]{px_agg()}}: Instructs API to use aggregations, and which values to select.
 }
+
+\code{\link[=top]{top()}} is a short alias for \code{\link[=px_top]{px_top()}}.
 }
 \examples{
 \donttest{

@@ -14,7 +14,7 @@ statgl_plot(
   title = NULL,
   subtitle = NULL,
   caption = NULL,
-  show_last_value = TRUE,
+  show_last_value = FALSE,
   xlab = NULL,
   ylab = NULL,
   tooltip = NULL,
@@ -26,7 +26,11 @@ statgl_plot(
   stacking = NULL,
   palette = "main",
   palette_reverse = FALSE,
-  height = 300
+  pyramid = NULL,
+  highlight = NULL,
+  height = 300,
+  legend_position = "bottom",
+  ...
 )
 }
 \arguments{
@@ -99,8 +103,78 @@ Statgl palette is used. Ignored when \code{palette} is a vector of hex colours.
 If the named palette is not found, a warning is issued and the default
 Highcharts colours are used.}
 
+\item{pyramid}{Pyramid layout for two-group charts (e.g. population
+pyramids). Default \code{NULL} (or \code{FALSE}) draws a normal chart. Other forms:
+\itemize{
+\item \code{TRUE} -- enable pyramid mode using the column passed to \verb{group =} as
+the splitting variable. Convention: men go on the right. Side ordering
+is chosen by (a) a male-label heuristic
+(\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...) putting men on the right,
+(b) a female-label heuristic putting women on the left, (c) factor
+levels if the group column is a factor, or (d) first appearance
+otherwise. When \code{TRUE}, the group column must resolve to exactly two
+distinct values.
+\item A single string such as \code{"M"} -- treated as the men/right value; the
+other side is inferred from the data (the single remaining value, or
+the one matching the female-label heuristic if more than one remains).
+\item A length-2 character vector \code{c(left, right)} such as \code{c("K", "M")}
+setting the sides explicitly.
+}
+
+When \code{pyramid} is a string or a length-2 vector, rows whose \code{group}
+value isn't one of the named levels are silently dropped (useful for
+PXWeb tables that include \code{"I alt"} / \code{"T"} totals alongside the two
+sex codes). Series and legend order are then locked to pyramid order so
+the legend reads left -> right with men on the right.
+
+It composes with any \code{type}; if \code{type} is not supplied it defaults to
+\code{"bar"} (rather than the usual \code{"line"} inference for integer ages).
+For \code{"bar"} and \code{"column"}, \code{stacking} defaults to \code{"normal"} so the
+two sides share the zero baseline; for \code{"area"}, \code{"line"} and friends
+it is left unset, since each series is already drawn from baseline 0
+and forcing stacking on a mixed-sign area chart causes Highcharts to
+clip the negated side.
+
+Pyramid always renders horizontally (categorical axis vertical, value
+axis horizontal extending left/right of zero -- the conventional
+orientation, equivalent to applying \code{ggplot2::coord_flip()}). For
+\code{type = "bar"} Highcharts handles this automatically; for \code{"area"},
+\code{"line"}, \code{"column"}, \code{"spline"} and \code{"areaspline"} it is achieved with
+\code{chart.inverted = TRUE}. The x-axis is set to \code{reversed = FALSE} so
+age 0 sits at the bottom. When \code{x} has more than ~30 distinct values
+and \code{height} is not passed explicitly, height is scaled up to as tall as
+is allowed.}
+
+\item{highlight}{Optional character vector of labels to visually
+emphasise. Matching elements are drawn in the Statgl accent orange
+(\verb{#faa41a}); everything else is drawn in neutral grey (\verb{#d3d3d3}).
+Overrides \code{palette} when set. Dispatch depends on chart shape:
+\itemize{
+\item \strong{Grouped chart} (\verb{group =} supplied): \code{highlight} matches against
+series names (the \code{group} values). Line/area types additionally get
+a thicker stroke and a higher \code{zIndex} so the highlighted series
+sits in the foreground.
+\item \strong{Ungrouped bar / column chart}: \code{highlight} matches against the
+\code{x} values, re-colouring individual bars. Useful for emphasising
+one district, commodity, etc. on a per-bar chart.
+\item \strong{Anything else ungrouped} (line, scatter, ...): no-op with a
+warning, since there's nothing series- or bar-shaped to single out.
+}
+
+Examples: \code{statgl_plot(df, bydel, highlight = "Nuuk")} highlights the
+Nuuk bar; \code{statgl_plot(df, time, value, group = commodity, highlight = "I alt")} highlights the totals line.}
+
 \item{height}{Numeric chart height in pixels passed to
 \code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
+
+\item{legend_position}{Where to place the legend. One of \code{"top"},
+\code{"bottom"} (default), \code{"left"}, \code{"right"}. Any other value (e.g.
+\code{"none"}, \code{NULL}, \code{FALSE}) hides the legend.}
+
+\item{...}{Additional arguments forwarded to \code{\link[highcharter:hchart]{highcharter::hchart()}}.
+Names that collide with arguments \code{statgl_plot()} already sets
+(\code{object}, \code{type}, \code{mapping}, \code{name}) are silently ignored so the
+wrapper's own values win.}
 }
 \value{
 A \link[highcharter:highchart]{highcharter::highchart} object.

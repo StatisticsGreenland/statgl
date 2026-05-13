@@ -10,6 +10,7 @@ statgl_table(
   .digits = 3,
   .big.mark = ".",
   .decimal.mark = ",",
+  .hide_mobile = NULL,
   .secondary = NULL,
   .row_group = NULL,
   .row_label = NULL,
@@ -18,6 +19,8 @@ statgl_table(
   .replace_nas = NULL,
   .first_col_width = NULL,
   .bottom_rule = TRUE,
+  .caption = NULL,
+  .bold_rows = NULL,
   .as_html = FALSE
 )
 }
@@ -32,8 +35,14 @@ statgl_table(
 
 \item{.decimal.mark}{Decimal separator.}
 
-\item{.secondary}{Optional tidyselect expression identifying columns that
-should be hidden on small screens (mobile). Hidden via a CSS media query.}
+\item{.hide_mobile}{Optional tidyselect expression identifying columns
+that should be hidden on small screens (mobile). Implemented via a CSS
+media query (\verb{max-width: 768px}) emitted inline alongside the table; the
+columns are still present in the HTML, just visually hidden on narrow
+viewports.}
+
+\item{.secondary}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}} Use \code{.hide_mobile}
+instead. Same shape and semantics.}
 
 \item{.row_group}{Optional column (bare or quoted) used to create
 grouped row banners. The column is removed from the printed table.}
@@ -44,23 +53,48 @@ grouped row banners. The column is removed from the printed table.}
 \item{.year_col}{Optional column that should be converted to character
 before formatting (e.g., time variables).}
 
-\item{.replace_0s}{Logical; if \code{TRUE}, zeroes are replaced with \code{"[-]{}"}
-to match Statistics Greenland table styling.}
+\item{.replace_0s}{\code{FALSE} (default; no replacement), \code{TRUE} (replace
+\code{0} with an en-dash), or a single character string used as a custom
+replacement (e.g. \code{"[-]{}"} for the Statistics Greenland Quarto
+shortcode).}
 
-\item{.replace_nas}{Optional string to replace \code{NA} values in the table.
-Defaults to no replacement.}
+\item{.replace_nas}{\code{NULL} (default; no replacement) or a single
+character string used as the replacement for \code{NA} (e.g. \code{".."}).}
 
 \item{.first_col_width}{Optional CSS width (e.g. \code{"12em"}) applied to the
 first column via \code{\link[kableExtra:column_spec]{kableExtra::column_spec()}}.}
 
-\item{.bottom_rule}{Logical; if \code{TRUE}, draws a thick bottom border on the
-last data row.}
+\item{.bottom_rule}{Logical; if \code{TRUE} (default), draws a thick bottom
+border on the last data row. Matches the Statistics Greenland design
+convention. Same semantics as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s \code{.bottom_rule}.}
 
-\item{.as_html}{Logical; if \code{TRUE}, return an HTML string. If \code{FALSE},
-return a \code{kableExtra} table object.}
+\item{.caption}{Optional table caption passed through to
+\code{\link[kableExtra:reexports]{kableExtra::kable()}}. Same semantics as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s
+\code{.caption}.}
+
+\item{.bold_rows}{Optional specification of rows to render in bold.
+Same shape as \code{\link[=statgl_crosstable]{statgl_crosstable()}}'s \code{.bold_rows}:
+\itemize{
+\item an integer vector of row positions,
+\item a character vector matching values in the \strong{first} column of the
+printed table (after \code{.row_group} is stripped out), or
+\item a one-sided formula (e.g. \code{~ year == max(year)}) evaluated on the
+formatted data frame; it must return a logical vector.
+}}
+
+\item{.as_html}{Logical; if \code{FALSE} (default), returns an
+\code{htmlwidget} that renders correctly in every context — the
+RStudio Viewer when called interactively, knitr / Quarto chunks,
+and Quarto shortcode parameters — matching the behavior of
+\code{\link[=statgl_plot]{statgl_plot()}}. If \code{TRUE}, returns a plain length-1 character
+vector instead; kept as an escape hatch for environments that
+can't handle widgets.}
 }
 \value{
-A \code{kableExtra} table or HTML string, depending on \code{.as_html}.
+An \code{htmlwidget} object by default (wrapping the rendered
+table HTML), or a length-1 character vector when
+\code{.as_html = TRUE}. In both cases the HTML includes a \verb{<style>}
+block when \code{.hide_mobile} is in play.
 }
 \description{
 Build a clean, styled HTML table suitable for Statistics Greenland pages.
@@ -77,8 +111,7 @@ df |>
     .row_label       = "",
     .replace_nas     = "..",
     .first_col_width = "12em",
-    .bottom_rule     = TRUE,
-    .as_html         = TRUE
+    .bottom_rule     = TRUE
   )
 }
 

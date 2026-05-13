@@ -1,6 +1,6 @@
 Package: statgl
 Title: Statistics Greenland R Package
-Version: 0.5.1
+Version: 0.5.2
 Authors@R: c(
     person("Emil", "Malta", , "emim@stat.gl", role = c("aut", "cre")),
     person("Alexander", "Krabbe", , "alkr@stat.gl", role = "aut")
@@ -24,7 +24,6 @@ Imports:
     jsonlite,
     kableExtra,
     lifecycle,
-    purrr,
     quarto,
     readr,
     rjstat,

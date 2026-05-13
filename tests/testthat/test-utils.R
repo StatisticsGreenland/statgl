@@ -38,25 +38,45 @@ test_that("generate_subfolders builds nested 2-char path segments", {
   expect_equal(generate_subfolders("BE0120"), "BE/BE01/BE0120")
 })
 
-test_that("glob2rx anchors patterns and translates wildcards", {
-  glob2rx <- statgl:::glob2rx
-  expect_equal(glob2rx("*"), "^.*$")
-  expect_equal(glob2rx("*0"), "^.*0$")
-  expect_equal(glob2rx("a?c"), "^a.c$")
-  # literal dots are escaped
-  expect_equal(glob2rx("file.csv"), "^file\\.csv$")
+test_that("is_greenland_api recognises Statistics Greenland URLs", {
+  is_greenland_api <- statgl:::is_greenland_api
+  expect_true(is_greenland_api("https://bank.stat.gl/api/v1/en/Greenland/"))
+  expect_true(is_greenland_api("http://bank.stat.gl:443/api/v1/en/Greenland/"))
+  expect_true(is_greenland_api("https://bank.stat.gl/api/v2/da/Greenland/"))
+  expect_false(is_greenland_api("https://api.scb.se/OV0104/v1/doris/en/ssd/"))
+  expect_false(is_greenland_api("https://example.com/api/v1/en/"))
+})
+
+test_that("infer_lang_from_url extracts the language segment", {
+  infer_lang_from_url <- statgl:::infer_lang_from_url
+  expect_equal(
+    infer_lang_from_url("https://bank.stat.gl/api/v1/en/Greenland/"),
+    "en"
+  )
+  expect_equal(
+    infer_lang_from_url("https://bank.stat.gl/api/v1/kl/Greenland/"),
+    "kl"
+  )
+  expect_equal(
+    infer_lang_from_url("https://bank.stat.gl/api/v2/da/Greenland/"),
+    "da"
+  )
+  expect_error(
+    infer_lang_from_url("https://example.com/no-version/"),
+    "Could not infer"
+  )
 })
 
 test_that("statgl_api_url returns the default and respects options()", {
   expect_equal(
-    statgl:::statgl_api_url(),
+    statgl_api_url(),
     "https://bank.stat.gl/api/v1/en/Greenland/"
   )
 
   withr::with_options(
     list(statgl.api_url = "https://example.test/api/v1/en/Test/"),
     expect_equal(
-      statgl:::statgl_api_url(),
+      statgl_api_url(),
       "https://example.test/api/v1/en/Test/"
     )
   )

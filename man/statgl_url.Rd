@@ -4,25 +4,44 @@
 \alias{statgl_url}
 \title{Retrieve URL of px table}
 \usage{
-statgl_url(table_id, lang, api_url = statgl_api_url())
+statgl_url(table_id, lang = NULL, api_url = statgl_api_url())
 }
 \arguments{
-\item{table_id}{ID of table}
+\item{table_id}{Table ID (case-insensitive). A \code{.px} suffix is added
+automatically if missing.}
 
-\item{lang}{API language of query. Defaults to \code{"en"}}
+\item{lang}{API language. If \code{NULL} (default), inferred from
+\code{table_id} for the Statistics Greenland API or from \code{api_url}
+otherwise. For the Statistics Greenland API must be one of \code{"en"},
+\code{"kl"}, or \code{"da"}.}
 
-\item{api_url}{URL of Statbank API. Defaults to Statistics Greenland API URL}
+\item{api_url}{Base URL of the PXWeb API. Defaults to
+\code{\link[=statgl_api_url]{statgl_api_url()}}.}
 }
 \value{
 A character string with the full PXWeb API URL for the table.
 }
 \description{
-Searches the statbank for a table of a given ID, and returns the URL if
-found. Only works on PX tables from Statistics Greenland.
+Searches the statbank for a table by ID and returns its full PXWeb API
+URL.
+}
+\details{
+For Statistics Greenland's API, the third character of \code{table_id}
+encodes the language (\code{N} = Greenlandic / \code{kl}, \code{D} = Danish / \code{da},
+\code{E} = English / \code{en}). When \code{lang} is not supplied, \code{\link[=statgl_url]{statgl_url()}}
+uses this character to infer the API language. The character itself
+is rewritten to \code{X} for the search request, since the API stores
+tables under that canonical form.
+
+For other PXWeb APIs the language is inferred from \code{api_url} instead,
+and \code{table_id} is used as-is.
+
+\code{table_id} is case-insensitive; a \code{.px} suffix is appended if missing.
 }
 \examples{
 \donttest{
 statgl_url("BEXST1")
+statgl_url("bexst1")            # same as above; case-insensitive
 statgl_url("BEXST1", lang = "kl")
 }
 }
