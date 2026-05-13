@@ -58,8 +58,9 @@ values
 \code{\link[highcharter:hc_caption]{highcharter::hc_caption()}}. Titles and subtitles are left-aligned;
 captions are right-aligned.}
 
-\item{show_last_value}{Logical; if \code{TRUE} (default), adds data labels for the
-final point of each \code{"line"}, \code{"spline"} and \code{"area"} series, or for all
+\item{show_last_value}{Logical; defaults \code{FALSE}. If \code{TRUE}, adds data labels
+for the final point of each \code{"line"}, \code{"spline"} and \code{"area"} series, or
+for all
 bars in \code{"bar"} / \code{"column"} charts.}
 
 \item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, no axis title is shown and
@@ -107,17 +108,17 @@ Highcharts colours are used.}
 pyramids). Default \code{NULL} (or \code{FALSE}) draws a normal chart. Other forms:
 \itemize{
 \item \code{TRUE} -- enable pyramid mode using the column passed to \verb{group =} as
-the splitting variable. Convention: men go on the right. Side ordering
-is chosen by (a) a male-label heuristic
-(\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...) putting men on the right,
-(b) a female-label heuristic putting women on the left, (c) factor
-levels if the group column is a factor, or (d) first appearance
-otherwise. When \code{TRUE}, the group column must resolve to exactly two
-distinct values.
-\item A single string such as \code{"M"} -- treated as the men/right value; the
+the splitting variable. Convention: men go on the left (the dominant
+international convention). Side ordering is chosen by (a) a male-label
+heuristic (\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...) putting men on the
+left, (b) a female-label heuristic putting women on the right,
+(c) factor levels if the group column is a factor, or (d) first
+appearance otherwise. When \code{TRUE}, the group column must resolve to
+exactly two distinct values.
+\item A single string such as \code{"M"} -- treated as the men/left value; the
 other side is inferred from the data (the single remaining value, or
 the one matching the female-label heuristic if more than one remains).
-\item A length-2 character vector \code{c(left, right)} such as \code{c("K", "M")}
+\item A length-2 character vector \code{c(left, right)} such as \code{c("M", "K")}
 setting the sides explicitly.
 }
 
@@ -125,7 +126,7 @@ When \code{pyramid} is a string or a length-2 vector, rows whose \code{group}
 value isn't one of the named levels are silently dropped (useful for
 PXWeb tables that include \code{"I alt"} / \code{"T"} totals alongside the two
 sex codes). Series and legend order are then locked to pyramid order so
-the legend reads left -> right with men on the right.
+the legend reads left -> right with men on the left.
 
 It composes with any \code{type}; if \code{type} is not supplied it defaults to
 \code{"bar"} (rather than the usual \code{"line"} inference for integer ages).

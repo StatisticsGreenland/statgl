@@ -60,24 +60,24 @@
 #' @param pyramid Pyramid layout for two-group charts (e.g. population
 #'   pyramids). Default `NULL` (or `FALSE`) draws a normal chart. Other forms:
 #'   * `TRUE` -- enable pyramid mode using the column passed to `group =` as
-#'     the splitting variable. Convention: men go on the right. Side ordering
-#'     is chosen by (a) a male-label heuristic
-#'     (`M`/`M\u00e6nd`/`Men`/`Angutit`/...) putting men on the right,
-#'     (b) a female-label heuristic putting women on the left, (c) factor
-#'     levels if the group column is a factor, or (d) first appearance
-#'     otherwise. When `TRUE`, the group column must resolve to exactly two
-#'     distinct values.
-#'   * A single string such as `"M"` -- treated as the men/right value; the
+#'     the splitting variable. Convention: men go on the left (the dominant
+#'     international convention). Side ordering is chosen by (a) a male-label
+#'     heuristic (`M`/`M\u00e6nd`/`Men`/`Angutit`/...) putting men on the
+#'     left, (b) a female-label heuristic putting women on the right,
+#'     (c) factor levels if the group column is a factor, or (d) first
+#'     appearance otherwise. When `TRUE`, the group column must resolve to
+#'     exactly two distinct values.
+#'   * A single string such as `"M"` -- treated as the men/left value; the
 #'     other side is inferred from the data (the single remaining value, or
 #'     the one matching the female-label heuristic if more than one remains).
-#'   * A length-2 character vector `c(left, right)` such as `c("K", "M")`
+#'   * A length-2 character vector `c(left, right)` such as `c("M", "K")`
 #'     setting the sides explicitly.
 #'
 #'   When `pyramid` is a string or a length-2 vector, rows whose `group`
 #'   value isn't one of the named levels are silently dropped (useful for
 #'   PXWeb tables that include `"I alt"` / `"T"` totals alongside the two
 #'   sex codes). Series and legend order are then locked to pyramid order so
-#'   the legend reads left -> right with men on the right.
+#'   the legend reads left -> right with men on the left.
 #'
 #'   It composes with any `type`; if `type` is not supplied it defaults to
 #'   `"bar"` (rather than the usual `"line"` inference for integer ages).
@@ -253,8 +253,8 @@ statgl_plot <- function(
     if (!isTRUE(pyramid) && !is.character(pyramid)) {
       stop(
         "`pyramid` must be TRUE/FALSE/NULL, a single string naming the ",
-        "men/right value (e.g. \"M\"), or a length-2 character vector ",
-        "like c(\"K\", \"M\").",
+        "men/left value (e.g. \"M\"), or a length-2 character vector ",
+        "like c(\"M\", \"K\").",
         call. = FALSE
       )
     }
@@ -805,7 +805,7 @@ statgl_plot <- function(
   # Highcharts reverses the legend on inverted/bar charts so it reads top to
   # bottom with the bars. For pyramids we already locked the series order to
   # c(left, right) via factor levels, so force `reversed = FALSE` to keep
-  # the legend reading left -> right in pyramid order (men on the right).
+  # the legend reading left -> right in pyramid order (men on the left).
   if (pyramid_on) {
     legend_args$reversed <- FALSE
   }
@@ -886,9 +886,11 @@ statgl_plot <- function(
 # Internal: resolve `pyramid` argument + the group column's values into a
 # length-2 character vector c(left, right).
 #
-# Convention: men go on the right when we can detect them. Explicit length-2
-# input is trusted as-is (user picked the order). length-1 is the
-# "men"/right value and the other side is inferred from the data.
+# Convention: men go on the left when we can detect them (the dominant
+# international convention used by the US Census, UN, and most demographic
+# textbooks). Explicit length-2 input is trusted as-is (user picked the
+# order). length-1 is the "men"/left value and the other side is inferred
+# from the data.
 #
 # Errors with friendly messages on:
 #   - pyramid not TRUE/FALSE/NULL/length-1/length-2 character
@@ -915,7 +917,7 @@ statgl_plot <- function(
       return(pyramid)
     }
 
-    # Length-1: this is the men/right value. Find the other side.
+    # Length-1: this is the men/left value. Find the other side.
     if (length(pyramid) == 1L) {
       if (!pyramid %in% present) {
         stop(
@@ -934,12 +936,12 @@ statgl_plot <- function(
         )
       }
       if (length(others) == 1L) {
-        return(c(others, pyramid))
+        return(c(pyramid, others))
       }
       # Multiple "others" -- disambiguate via female-label heuristic.
       female_match <- intersect(.statgl_female_labels, others)
       if (length(female_match) == 1L) {
-        return(c(female_match, pyramid))
+        return(c(pyramid, female_match))
       }
       stop(
         "`pyramid = \"", pyramid, "\"` is ambiguous: multiple other ",
@@ -951,7 +953,7 @@ statgl_plot <- function(
     }
 
     stop(
-      "`pyramid` must be TRUE, a single string naming the men/right value, ",
+      "`pyramid` must be TRUE, a single string naming the men/left value, ",
       "or a length-2 character vector. Got length ", length(pyramid), ".",
       call. = FALSE
     )
@@ -971,16 +973,16 @@ statgl_plot <- function(
     )
   }
 
-  # Men on the right when we can detect them, regardless of factor/character.
+  # Men on the left when we can detect them, regardless of factor/character.
   male_match <- intersect(.statgl_male_labels, present)
   if (length(male_match) == 1L) {
-    return(c(setdiff(present, male_match), male_match))
+    return(c(male_match, setdiff(present, male_match)))
   }
 
-  # Women on the left as a secondary heuristic.
+  # Women on the right as a secondary heuristic.
   female_match <- intersect(.statgl_female_labels, present)
   if (length(female_match) == 1L) {
-    return(c(female_match, setdiff(present, female_match)))
+    return(c(setdiff(present, female_match), female_match))
   }
 
   # No sex detection -- fall back to factor levels or first-appearance order.

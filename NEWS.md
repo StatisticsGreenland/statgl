@@ -106,12 +106,14 @@ explicit opt-ins.
   layouts on two-group charts. Accepts:
   - `TRUE` — auto-detect the two sides via a male-label heuristic
     (`M` / `Mænd` / `Men` / `Angutit` / ...) and a female-label
-    fallback, putting men on the right.
-  - A single string like `"M"` — treated as the men/right value; the
+    fallback, putting men on the left (the dominant international
+    convention used by the US Census, UN, and most demographic
+    textbooks).
+  - A single string like `"M"` — treated as the men/left value; the
     other side is inferred from the data (the single remaining value,
     or the one matching the female-label heuristic when more than one
     remains).
-  - A length-2 character vector `c(left, right)` like `c("K", "M")` —
+  - A length-2 character vector `c(left, right)` like `c("M", "K")` —
     sets both sides explicitly.
 
   When `pyramid` is a string or length-2 vector, rows whose `group`
@@ -119,7 +121,7 @@ explicit opt-ins.
   for PXWeb tables that include an `"I alt"` / `"T"` total alongside
   the two sex codes. Series and legend order are then locked to
   pyramid order so the legend reads left → right with men on the
-  right. Pyramid composes with `type`: defaults to `"bar"` when
+  left. Pyramid composes with `type`: defaults to `"bar"` when
   `type` is not supplied (so an integer age column doesn't trigger
   line inference); for `"bar"` and `"column"`, `stacking` defaults to
   `"normal"` so the two sides share the zero baseline. The chart
