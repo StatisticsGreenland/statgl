@@ -1,5 +1,17 @@
 # statgl (development version)
 
+This release is a substantial refactor of `statgl_table()` and
+`statgl_crosstable()`: their argument surfaces are now largely shared
+(`.hide_mobile`, `.caption`, `.bottom_rule`, `.bold_rows`, `.digits`
+are available on both), they return an `htmlwidget` by default for
+first-class RStudio Viewer / knitr / Quarto-shortcode integration,
+`statgl_crosstable()` emits nested column headers when 3+ grouping
+variables are passed (instead of dash-uniting them into a single
+label row), and `.value` defaults to an auto-detect that falls back
+to `dplyr::n()` row counts when the data frame has no `value` column.
+The old behaviors are preserved on the deprecation-warning path or as
+explicit opt-ins.
+
 ## Bug fixes
 
 * `statgl_url()` no longer constructs malformed search IDs from
@@ -46,6 +58,24 @@
   `statgl_fetch("BEXSTA", time = px_top(3))`. `px_top()` is unchanged
   and remains the canonical name; both are documented on the same Rd
   page.
+* `statgl_table()` and `statgl_crosstable()` now return an
+  `htmlwidget` by default, mirroring the return type of
+  `statgl_plot()`. The widget wraps the pre-rendered table HTML
+  (kable + any `.hide_mobile` `<style>` block) in a trivial JS shim
+  that just sets `innerHTML` on its container `<div>`. The benefit is
+  integration parity with `statgl_plot()`: the same return value
+  opens in the RStudio Viewer interactively, renders in knitr /
+  Quarto chunks, and substitutes cleanly into Quarto **shortcode
+  parameters** (e.g. `` `r t` `` inside `{{< … >}}`) the way other
+  widgets do. The widget bundles Bootstrap 5.1.3 as an HTML
+  dependency so the kableExtra bootstrap classes (`table`,
+  `table-striped`, …) style correctly when it renders standalone
+  (e.g. the RStudio Viewer); Quarto / R Markdown documents that
+  already bundle Bootstrap will dedupe by name + version.
+  `.as_html = TRUE` is retained as an escape hatch and still returns
+  a plain character vector with no class — for callers that need to
+  bypass the widget entirely (e.g. older Quarto extensions that
+  can't parse widget output).
 * `statgl_table()` and `statgl_crosstable()` gain a `.hide_mobile`
   argument for CSS-based responsive hiding of columns at small
   viewports (`max-width: 768px`). The columns remain in the rendered
@@ -148,45 +178,6 @@
   line / area series, but were visually noisy on grouped charts and
   fired on every bar of bar/column charts. Pass `show_last_value =
   TRUE` on a per-call basis to restore the old behavior.
-
-## Deprecations and removals
-
-* The `url` argument of `statgl_fetch()` (deprecated since 0.2.0) now
-  errors via `lifecycle::deprecate_stop()` instead of warning. Use `x`
-  instead. The argument will be removed entirely in a future release.
-* The `.chunk_size` argument of `statgl_fetch()` was a non-functional
-  placeholder and has been removed. Chunking continues to happen
-  automatically when a query exceeds the API's cell limit.
-* `statgl_crosstable()`'s `.secondary` argument is renamed to `.drop`
-  to clarify that it filters data (not styling). `.secondary` still
-  works for now but emits a `lifecycle::deprecate_warn`. If both are
-  supplied, `.drop` wins.
-* `statgl_table()`'s `.secondary` argument is renamed to `.hide_mobile`
-  to clarify that it controls CSS responsive hiding (not styling or
-  filtering). `.secondary` still works for now but emits a
-  `lifecycle::deprecate_warn`. If both are supplied, `.hide_mobile`
-  wins.
-* `statgl_table()` and `statgl_crosstable()` now return an
-  [`htmlwidget`][htmlwidgets::createWidget] by default, mirroring the
-  return type of [`statgl_plot()`][statgl_plot]. The widget wraps the
-  pre-rendered table HTML (kable + any `.hide_mobile` `<style>` block)
-  in a trivial JS shim that just sets `innerHTML` on its container
-  `<div>`. The benefit is integration parity with `statgl_plot()`:
-  the same return value opens in the RStudio Viewer interactively,
-  renders in knitr / Quarto chunks, and substitutes cleanly into
-  Quarto **shortcode parameters** (e.g. `` `r t` `` inside
-  `{{< … >}}`) the way other widgets do.
-* `.as_html = TRUE` is retained as an escape hatch and still returns
-  a plain character vector with no class — for callers that need to
-  bypass the widget entirely.
-* The widget bundles Bootstrap 5.1.3 as an HTML dependency so the
-  kableExtra bootstrap classes (`table`, `table-striped`, …) style
-  correctly when the widget renders standalone (e.g. RStudio
-  Viewer). Quarto / R Markdown documents that already bundle
-  Bootstrap will dedupe by name + version.
-
-## Behavior changes (continued)
-
 * `statgl_crosstable()` with a **single** grouping variable no longer
   emits a redundant spanning header row above the column names — the
   spanning row used to duplicate the `col.names`. The 2-variable
@@ -223,6 +214,24 @@
   `FALSE` to `NULL`. `FALSE` is still accepted as a no-op alias
   (silent), and `.replace_nas = TRUE` is now deprecated with a
   warning — pass `.replace_nas = "."` to keep the previous behavior.
+
+## Deprecations and removals
+
+* The `url` argument of `statgl_fetch()` (deprecated since 0.2.0) now
+  errors via `lifecycle::deprecate_stop()` instead of warning. Use `x`
+  instead. The argument will be removed entirely in a future release.
+* The `.chunk_size` argument of `statgl_fetch()` was a non-functional
+  placeholder and has been removed. Chunking continues to happen
+  automatically when a query exceeds the API's cell limit.
+* `statgl_crosstable()`'s `.secondary` argument is renamed to `.drop`
+  to clarify that it filters data (not styling). `.secondary` still
+  works for now but emits a `lifecycle::deprecate_warn`. If both are
+  supplied, `.drop` wins.
+* `statgl_table()`'s `.secondary` argument is renamed to `.hide_mobile`
+  to clarify that it controls CSS responsive hiding (not styling or
+  filtering). `.secondary` still works for now but emits a
+  `lifecycle::deprecate_warn`. If both are supplied, `.hide_mobile`
+  wins.
 
 ## Documentation
 
