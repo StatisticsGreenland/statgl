@@ -72,6 +72,65 @@
   - `.dry_run` — return the resolved URL, parsed selections, and JSON
     body that would be POSTed, without sending the request. Useful for
     debugging selection issues.
+* `statgl_plot()` gains a `pyramid` argument for population-pyramid
+  layouts on two-group charts. Accepts:
+  - `TRUE` — auto-detect the two sides via a male-label heuristic
+    (`M` / `Mænd` / `Men` / `Angutit` / ...) and a female-label
+    fallback, putting men on the right.
+  - A single string like `"M"` — treated as the men/right value; the
+    other side is inferred from the data (the single remaining value,
+    or the one matching the female-label heuristic when more than one
+    remains).
+  - A length-2 character vector `c(left, right)` like `c("K", "M")` —
+    sets both sides explicitly.
+
+  When `pyramid` is a string or length-2 vector, rows whose `group`
+  value isn't one of the named levels are silently dropped — useful
+  for PXWeb tables that include an `"I alt"` / `"T"` total alongside
+  the two sex codes. Series and legend order are then locked to
+  pyramid order so the legend reads left → right with men on the
+  right. Pyramid composes with `type`: defaults to `"bar"` when
+  `type` is not supplied (so an integer age column doesn't trigger
+  line inference); for `"bar"` and `"column"`, `stacking` defaults to
+  `"normal"` so the two sides share the zero baseline. The chart
+  always renders horizontally — Highcharts auto-inverts `"bar"`;
+  other types get `chart.inverted = TRUE`.
+* `statgl_plot()` gains a `highlight` argument for visually
+  emphasising specific labels. Matching elements are drawn in the
+  Statgl accent orange (`#faa41a`); everything else is neutral grey
+  (`#d3d3d3`). Dispatch follows chart shape:
+  - **Grouped chart** (`group =` supplied): matches against series
+    names. Line/area types additionally get a thicker stroke
+    (`lineWidth = 3`) and a higher `zIndex` so the highlighted
+    series sits in the foreground.
+  - **Ungrouped bar / column**: matches against the `x` values,
+    re-colouring individual bars. Useful for emphasising one
+    district, commodity, etc. on a per-bar chart without faking a
+    `group =`.
+  - **Anything else ungrouped** (line, scatter, ...): no-op with a
+    warning, since there's nothing series- or bar-shaped to single
+    out.
+
+  Overrides `palette` when set, so the default `palette = "main"`
+  doesn't fight with it. Example uses:
+  `statgl_plot(df, bydel, highlight = "Nuuk")` highlights the Nuuk
+  bar; `statgl_plot(df, time, value, group = commodity,
+  highlight = "I alt")` highlights the totals line.
+* `statgl_plot()` gains a `legend_position` argument. One of
+  `"top"`, `"bottom"` (default, matching the prior Highcharts
+  layout), `"left"`, `"right"`. Any other value — `"none"`, `NULL`,
+  `FALSE`, etc. — hides the legend entirely.
+* `statgl_plot()` now forwards `...` to
+  `highcharter::hchart()`. Names that `statgl_plot()` already sets
+  itself (`object`, `type`, `mapping`, `name`) are dropped so the
+  wrapper's own values win; everything else reaches `hchart()`.
+  Useful as an escape hatch for one-off `hchart()`-level options
+  without giving up the Statgl defaults.
+* `statgl_plot()` now warns when the input `y` column contains
+  negative values. The check runs on the original column before
+  any `pyramid` mirroring, so pyramid charts don't trip it. Only
+  fires when `y` resolves to a bare column name — expression
+  `y`'s like `y = log(value)` are left alone.
 
 ## Behavior changes
 
@@ -84,6 +143,11 @@
   failures (status, response body, and a `statgl_meta()` hint folded
   into one `stop()`); previously it printed several lines via `cat()`
   before erroring.
+* `statgl_plot()`'s `show_last_value` default changed from `TRUE` to
+  `FALSE`. The end-of-line value labels are still useful on a single
+  line / area series, but were visually noisy on grouped charts and
+  fired on every bar of bar/column charts. Pass `show_last_value =
+  TRUE` on a per-call basis to restore the old behavior.
 
 ## Deprecations and removals
 
