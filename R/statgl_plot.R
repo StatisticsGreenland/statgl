@@ -95,14 +95,23 @@
 #'   age 0 sits at the bottom. When `x` has more than ~30 distinct values
 #'   and `height` is not passed explicitly, height is scaled up to as tall as
 #'   is allowed.
-#' @param highlight_group Optional character vector of `group` values to
-#'   visually highlight in a grouped chart. Matching series are drawn in
-#'   the Statgl accent orange (`#faa41a`); all other series are drawn in
-#'   neutral grey (`#7d7d7d`). For line/area types the highlighted series
-#'   also get a thicker stroke and are brought to the front. Overrides
-#'   `palette` when set. Has no effect (with a warning) if `group =` is
-#'   not supplied. Useful for emphasising totals such as
-#'   `highlight_group = "I alt"` against a backdrop of category series.
+#' @param highlight Optional character vector of labels to visually
+#'   emphasise. Matching elements are drawn in the Statgl accent orange
+#'   (`#faa41a`); everything else is drawn in neutral grey (`#d3d3d3`).
+#'   Overrides `palette` when set. Dispatch depends on chart shape:
+#'   * **Grouped chart** (`group =` supplied): `highlight` matches against
+#'     series names (the `group` values). Line/area types additionally get
+#'     a thicker stroke and a higher `zIndex` so the highlighted series
+#'     sits in the foreground.
+#'   * **Ungrouped bar / column chart**: `highlight` matches against the
+#'     `x` values, re-colouring individual bars. Useful for emphasising
+#'     one district, commodity, etc. on a per-bar chart.
+#'   * **Anything else ungrouped** (line, scatter, ...): no-op with a
+#'     warning, since there's nothing series- or bar-shaped to single out.
+#'
+#'   Examples: `statgl_plot(df, bydel, highlight = "Nuuk")` highlights the
+#'   Nuuk bar; `statgl_plot(df, time, value, group = commodity,
+#'   highlight = "I alt")` highlights the totals line.
 #' @param height Numeric chart height in pixels passed to
 #'   [highcharter::hc_chart()]. Defaults to `300`.
 #' @param legend_position Where to place the legend. One of `"top"`,
@@ -137,7 +146,7 @@ statgl_plot <- function(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
-  highlight_group = NULL,
+  highlight = NULL,
   height = 300,
   legend_position = "bottom",
   ...
@@ -562,10 +571,10 @@ statgl_plot <- function(
   }
 
   # --- palette ---------------------------------------------------
-  # When `highlight_group` is set we colour series ourselves below, so skip
+  # When `highlight` is set we colour the chart ourselves below, so skip
   # the palette pass entirely. That way users can pass the default
-  # `palette = "main"` together with `highlight_group` without conflict.
-  if (!is.null(palette) && is.null(highlight_group)) {
+  # `palette = "main"` together with `highlight` without conflict.
+  if (!is.null(palette) && is.null(highlight)) {
     # Get existing series from chart
     series_list <- chart$x$hc_opts$series
     if (is.null(series_list)) {
@@ -637,23 +646,19 @@ statgl_plot <- function(
     }
   }
 
-  # --- highlight_group -------------------------------------------
-  # Re-colour series so values in `highlight_group` are the Statgl accent
-  # orange and everything else is neutral grey. For line/area types we
-  # also bump the line weight and zIndex of the highlighted series so it
-  # reads as the foreground line.
-  if (!is.null(highlight_group)) {
-    if (!has_group) {
-      warning(
-        "`highlight_group` only applies to grouped charts; ignored ",
-        "because `group =` was not set.",
-        call. = FALSE
-      )
-    } else {
-      highlight_set <- as.character(highlight_group)
-      highlight_color <- "#faa41a"
-      neutral_color   <- "#7d7d7d"
+  # --- highlight -------------------------------------------------
+  # Re-colour the chart so values in `highlight` are the Statgl accent
+  # orange and everything else is neutral grey. Dispatch by shape:
+  #   * grouped chart        -> match against series names (per-series colour)
+  #   * ungrouped bar/column -> match against x values (per-point colour)
+  #   * anything else        -> warn (nothing meaningful to single out)
+  if (!is.null(highlight)) {
+    highlight_set   <- as.character(highlight)
+    highlight_color <- "#faa41a"
+    neutral_color   <- "#d3d3d3"
 
+    if (has_group) {
+      # --- per-series highlight ----------------------------------
       series_list <- chart$x$hc_opts$series
       if (is.null(series_list)) {
         series_list <- list()
@@ -669,7 +674,7 @@ statgl_plot <- function(
 
       if (length(series_list) > 0L && !any(matched)) {
         warning(
-          "`highlight_group` matched no series. Looked for ",
+          "`highlight` matched no series. Looked for ",
           paste0("\"", highlight_set, "\"", collapse = ", "),
           "; series are ",
           paste0("\"", series_names, "\"", collapse = ", "),
@@ -693,6 +698,74 @@ statgl_plot <- function(
         }
         chart$x$hc_opts$series <- series_list
       }
+
+    } else if (type %in% c("bar", "column")) {
+      # --- per-point highlight on an ungrouped bar/column chart ---
+      # Match against the x values; recolour individual points in the
+      # single series. Falls back to df row order when point names aren't
+      # exposed by hchart (they usually are for categorical x).
+      x_name <- rlang::as_name(x_expr)
+      series_list <- chart$x$hc_opts$series
+      if (is.null(series_list)) series_list <- list()
+
+      if (length(series_list) >= 1L &&
+          length(series_list[[1]]$data) > 0L) {
+
+        pts <- series_list[[1]]$data
+        n_pts <- length(pts)
+
+        # Prefer matching on point name (hchart sets this for categorical x);
+        # fall back to df[[x_name]] in row order when names are absent.
+        pt_names <- vapply(
+          pts,
+          function(d) if (is.list(d) && !is.null(d$name)) {
+            as.character(d$name)
+          } else {
+            NA_character_
+          },
+          character(1)
+        )
+
+        if (all(is.na(pt_names)) && x_name %in% names(df) &&
+            length(df[[x_name]]) == n_pts) {
+          pt_names <- as.character(df[[x_name]])
+        }
+
+        matched <- pt_names %in% highlight_set
+
+        if (!any(matched)) {
+          warning(
+            "`highlight` matched no bars. Looked for ",
+            paste0("\"", highlight_set, "\"", collapse = ", "),
+            "; x values are ",
+            paste0("\"", unique(pt_names[!is.na(pt_names)]), "\"",
+                   collapse = ", "),
+            ".",
+            call. = FALSE
+          )
+        }
+
+        cols <- ifelse(matched, highlight_color, neutral_color)
+
+        for (i in seq_len(n_pts)) {
+          d <- pts[[i]]
+          if (is.list(d)) {
+            d$color <- cols[i]
+          } else {
+            d <- list(y = d, color = cols[i])
+          }
+          series_list[[1]]$data[[i]] <- d
+        }
+        chart$x$hc_opts$series <- series_list
+      }
+
+    } else {
+      warning(
+        "`highlight` has no effect on ungrouped ", type, " charts. ",
+        "Pass `group =` to highlight a series, or use a bar/column ",
+        "chart to highlight a category.",
+        call. = FALSE
+      )
     }
   }
 

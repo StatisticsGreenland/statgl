@@ -27,7 +27,7 @@ statgl_plot(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
-  highlight_group = NULL,
+  highlight = NULL,
   height = 300,
   legend_position = "bottom",
   ...
@@ -145,14 +145,24 @@ age 0 sits at the bottom. When \code{x} has more than ~30 distinct values
 and \code{height} is not passed explicitly, height is scaled up to as tall as
 is allowed.}
 
-\item{highlight_group}{Optional character vector of \code{group} values to
-visually highlight in a grouped chart. Matching series are drawn in
-the Statgl accent orange (\verb{#faa41a}); all other series are drawn in
-neutral grey (\verb{#7d7d7d}). For line/area types the highlighted series
-also get a thicker stroke and are brought to the front. Overrides
-\code{palette} when set. Has no effect (with a warning) if \verb{group =} is
-not supplied. Useful for emphasising totals such as
-\code{highlight_group = "I alt"} against a backdrop of category series.}
+\item{highlight}{Optional character vector of labels to visually
+emphasise. Matching elements are drawn in the Statgl accent orange
+(\verb{#faa41a}); everything else is drawn in neutral grey (\verb{#d3d3d3}).
+Overrides \code{palette} when set. Dispatch depends on chart shape:
+\itemize{
+\item \strong{Grouped chart} (\verb{group =} supplied): \code{highlight} matches against
+series names (the \code{group} values). Line/area types additionally get
+a thicker stroke and a higher \code{zIndex} so the highlighted series
+sits in the foreground.
+\item \strong{Ungrouped bar / column chart}: \code{highlight} matches against the
+\code{x} values, re-colouring individual bars. Useful for emphasising
+one district, commodity, etc. on a per-bar chart.
+\item \strong{Anything else ungrouped} (line, scatter, ...): no-op with a
+warning, since there's nothing series- or bar-shaped to single out.
+}
+
+Examples: \code{statgl_plot(df, bydel, highlight = "Nuuk")} highlights the
+Nuuk bar; \code{statgl_plot(df, time, value, group = commodity, highlight = "I alt")} highlights the totals line.}
 
 \item{height}{Numeric chart height in pixels passed to
 \code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
