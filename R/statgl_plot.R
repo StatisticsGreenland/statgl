@@ -56,6 +56,34 @@
 #'   Statgl palette is used. Ignored when `palette` is a vector of hex colours.
 #'   If the named palette is not found, a warning is issued and the default
 #'   Highcharts colours are used.
+#' @param pyramid Pyramid layout for two-group charts (e.g. population
+#'   pyramids). Default `NULL` (or `FALSE`) draws a normal chart. Other forms:
+#'   * `TRUE` — enable pyramid mode using the column passed to `group =` as the
+#'     splitting variable. The "left" side (whose values are mirrored across
+#'     zero) is chosen by: (a) factor levels if the group column is a factor,
+#'     (b) a male-label heuristic for character columns
+#'     (`M`/`Mænd`/`Men`/`Angutit`/...), or (c) first appearance otherwise.
+#'   * A length-2 character vector such as `c("M", "K")` setting the left and
+#'     right levels explicitly.
+#'
+#'   Pyramid requires `group =` and that the group column resolves to exactly
+#'   two distinct values present in the data. It composes with any `type`; if
+#'   `type` is not supplied it defaults to `"bar"` (rather than the usual
+#'   `"line"` inference for integer ages). For `"bar"` and `"column"`,
+#'   `stacking` defaults to `"normal"` so the two sides share the zero
+#'   baseline; for `"area"`, `"line"` and friends it is left unset, since
+#'   each series is already drawn from baseline 0 and forcing stacking on a
+#'   mixed-sign area chart causes Highcharts to clip the negated side.
+#'
+#'   Pyramid always renders horizontally (categorical axis vertical, value
+#'   axis horizontal extending left/right of zero — the conventional
+#'   orientation, equivalent to applying `ggplot2::coord_flip()`). For
+#'   `type = "bar"` Highcharts handles this automatically; for `"area"`,
+#'   `"line"`, `"column"`, `"spline"` and `"areaspline"` it is achieved with
+#'   `chart.inverted = TRUE`. The x-axis is set to `reversed = FALSE` so
+#'   age 0 sits at the bottom. When `x` has more than ~30 distinct values
+#'   and `height` is not passed explicitly, height is scaled up to as tall as
+#'   is allowed.
 #' @param height Numeric chart height in pixels passed to
 #'   [highcharter::hc_chart()]. Defaults to `300`.
 #'
@@ -70,7 +98,7 @@ statgl_plot <- function(
   title = NULL,
   subtitle = NULL,
   caption = NULL,
-  show_last_value = TRUE,
+  show_last_value = FALSE,
   xlab = NULL,
   ylab = NULL,
   tooltip = NULL,
@@ -82,11 +110,13 @@ statgl_plot <- function(
   stacking = NULL,
   palette = "main",
   palette_reverse = FALSE,
+  pyramid = NULL,
   height = 300
 ) {
   # --- number formatting setup -----------------------------------
   big_mark_missing <- missing(big.mark)
   decimal_mark_missing <- missing(decimal.mark)
+  height_user_set      <- !missing(height)
 
   if (!is.null(locale) && big_mark_missing && decimal_mark_missing) {
     if (locale %in% c("da", "kl")) {
@@ -128,6 +158,99 @@ statgl_plot <- function(
 
   mapping <- rlang::eval_tidy(mapping_expr)
 
+  # --- pyramid setup --------------------------------------------
+  # Resolve pyramid early so we can mutate `df` *before* hchart() builds
+  # series. Uses the same `group =` column as the rest of the function — it is
+  # a modifier on a grouped chart, not its own grouping mechanism.
+  pyramid_on     <- !is.null(pyramid) && !identical(pyramid, FALSE)
+  pyramid_levels <- NULL
+
+  if (pyramid_on) {
+    if (!has_group) {
+      stop(
+        "`pyramid` requires `group = <column>`. ",
+        "Did you mean: statgl_plot(", deparse(rlang::enexpr(df)),
+        ", x = ", deparse(x_expr),
+        ", group = <column>, pyramid = ",
+        if (isTRUE(pyramid)) "TRUE"
+        else paste0("c(\"", paste(pyramid, collapse = "\", \""), "\")"),
+        ")?",
+        call. = FALSE
+      )
+    }
+    if (!rlang::is_symbol(group_expr)) {
+      stop(
+        "`pyramid` requires `group =` to be a bare column name.",
+        call. = FALSE
+      )
+    }
+    if (!rlang::is_symbol(y_expr)) {
+      stop(
+        "`pyramid` requires `y =` to be a bare column name (got an ",
+        "expression). Pre-compute the column or rename it.",
+        call. = FALSE
+      )
+    }
+    if (!isTRUE(pyramid) && !is.character(pyramid)) {
+      stop(
+        "`pyramid` must be TRUE/FALSE/NULL or a length-2 character vector ",
+        "like c(\"M\", \"K\").",
+        call. = FALSE
+      )
+    }
+
+    group_name <- rlang::as_name(group_expr)
+    y_name     <- rlang::as_name(y_expr)
+
+    if (!group_name %in% names(df)) {
+      stop("`group` column \"", group_name, "\" not found in `df`.",
+           call. = FALSE)
+    }
+    if (!y_name %in% names(df)) {
+      stop("`y` column \"", y_name, "\" not found in `df`.", call. = FALSE)
+    }
+
+    pyramid_levels <- .resolve_pyramid_levels(
+      pyramid     = pyramid,
+      group_vals  = df[[group_name]],
+      group_name  = group_name
+    )
+
+    # Mirror the left side across zero. We work on a local copy of df so the
+    # caller's data is untouched.
+    df <- df
+    is_left <- as.character(df[[group_name]]) == pyramid_levels[1]
+    df[[y_name]][is_left] <- -df[[y_name]][is_left]
+
+    # Default to bars when the user didn't set a type. Without this, an integer
+    # age column would be inferred as "line", which is rarely what you want for
+    # a pyramid. Other types ("area", "column", ...) still compose if asked.
+    if (is.null(type)) {
+      type <- "bar"
+    }
+
+    # For bar/column pyramids the two sides need a shared baseline, otherwise
+    # they render dodged side-by-side. Force `stacking = "normal"` only for
+    # those types — area/line/spline don't need it (each series is already
+    # drawn from the zero baseline) and forcing it on area in particular
+    # collapses the auto-bounds of the negated side, clipping it visually.
+    if (is.null(stacking) && type %in% c("bar", "column")) {
+      stacking <- "normal"
+    }
+
+    # Auto-scale height when there are many bars and the user didn't set
+    # `height` explicitly.
+    if (!height_user_set) {
+      x_name <- rlang::as_name(x_expr)
+      if (x_name %in% names(df)) {
+        n_x <- length(unique(df[[x_name]]))
+        if (n_x > 30L) {
+          height <- NULL
+        }
+      }
+    }
+  }
+
   # --- type inference --------------------------------------------
   if (is.null(type)) {
     x_vals <- df[[rlang::as_name(x_expr)]]
@@ -163,6 +286,14 @@ statgl_plot <- function(
 
   chart <- rlang::exec(highcharter::hchart, !!!args)
 
+  # Pyramid implies a coord-flip-style horizontal layout (categorical axis
+  # vertical, value axis horizontal extending left/right of zero). `type =
+  # "bar"` is auto-inverted by Highcharts already; any other pyramid type
+  # needs `chart.inverted = TRUE` to get the conventional orientation.
+  if (pyramid_on && !identical(type, "bar")) {
+    chart <- highcharter::hc_chart(chart, inverted = TRUE)
+  }
+
   # --- titles / captions -----------------------------------------
   if (!is.null(title)) {
     chart <- highcharter::hc_title(chart, text = title, align = "left")
@@ -194,13 +325,33 @@ statgl_plot <- function(
     )
   }
 
+  # Pyramid charts are always inverted (bar auto-inverts, others get
+  # chart.inverted = TRUE above), and Highcharts defaults xAxis.reversed to
+  # TRUE on inverted charts — which puts the largest value at the bottom.
+  # Override so age 0 sits at the bottom and age 100 at the top, regardless
+  # of pyramid type.
+  if (pyramid_on) {
+    x_axis_opts$reversed <- FALSE
+  }
+
   chart <- do.call(highcharter::hc_xAxis, c(list(chart), x_axis_opts))
 
   # Y axis
+  y_axis_labels <- list(style = list(color = neutral_ink))
+  if (pyramid_on) {
+    # Show absolute values on the axis since the left side is negated.
+    y_axis_labels$formatter <- highcharter::JS(sprintf(
+      'function() {
+         return Highcharts.numberFormat(Math.abs(this.value), %d, "%s", "%s") + "%s";
+       }',
+      digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+  }
   y_axis_opts <- list(
-    labels = list(
-      style = list(color = neutral_ink)
-    ),
+    labels = y_axis_labels,
     title = list(
       style = list(color = "#7d7d7d")
     ),
@@ -225,6 +376,10 @@ statgl_plot <- function(
   chart <- do.call(highcharter::hc_yAxis, c(list(chart), y_axis_opts))
 
   # --- tooltip ---------------------------------------------------
+  # When pyramid is on, the underlying y is negated for the left side; the
+  # tooltip should always show the magnitude.
+  y_value_js <- if (pyramid_on) "Math.abs(this.y)" else "this.y"
+
   if (!is.null(tooltip)) {
     # user-supplied tooltip JS wins
     chart <- highcharter::hc_tooltip(
@@ -239,9 +394,10 @@ statgl_plot <- function(
            var name = (this.series && this.series.name)
              ? this.series.name + ": "
              : "";
-           var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           var value = Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
            return name + value;
          }',
+        y_value_js,
         digits,
         decimal_mark,
         big_mark,
@@ -250,9 +406,10 @@ statgl_plot <- function(
     } else {
       pf_js <- highcharter::JS(sprintf(
         'function() {
-           var value = Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           var value = Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
            return value;
          }',
+        y_value_js,
         digits,
         decimal_mark,
         big_mark,
@@ -289,8 +446,9 @@ statgl_plot <- function(
         formatter = highcharter::JS(sprintf(
           'function() {
            if (this.point.index !== this.series.data.length - 1) return null;
-           return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           return Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
          }',
+          y_value_js,
           digits,
           decimal_mark,
           big_mark,
@@ -305,8 +463,9 @@ statgl_plot <- function(
         ),
         formatter = highcharter::JS(sprintf(
           'function() {
-           return Highcharts.numberFormat(this.y, %d, "%s", "%s") + "%s";
+           return Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
          }',
+          y_value_js,
           digits,
           decimal_mark,
           big_mark,
@@ -470,4 +629,71 @@ statgl_plot <- function(
   )
 
   chart
+}
+
+# Internal: known male-coded labels across the languages Statistics Greenland
+# uses. Used by `pyramid = TRUE` to default males to the left side when the
+# group column is character (factor users get control via factor levels).
+.statgl_male_labels <- c(
+  "M", "Mænd", "Maend", "Mand", "Men", "Male",
+  "Angutit", "Angut"
+)
+
+# Internal: resolve `pyramid` argument + the group column's values into a
+# length-2 character vector c(left, right).
+#
+# Errors with friendly messages on:
+#   - pyramid not TRUE/FALSE/NULL/length-2 character
+#   - group column resolving to != 2 distinct present values
+#   - explicit pyramid levels not all present in the data
+.resolve_pyramid_levels <- function(pyramid, group_vals, group_name) {
+  present <- unique(as.character(group_vals[!is.na(group_vals)]))
+
+  # Explicit length-2 character: trust the user but verify both levels exist.
+  if (is.character(pyramid)) {
+    if (length(pyramid) != 2L) {
+      stop(
+        "`pyramid` must be TRUE or a length-2 character vector ",
+        "(left, right). Got length ", length(pyramid), ".",
+        call. = FALSE
+      )
+    }
+    missing <- setdiff(pyramid, present)
+    if (length(missing) > 0L) {
+      stop(
+        "`pyramid` levels not found in `", group_name, "`: ",
+        paste0("\"", missing, "\"", collapse = ", "),
+        ". Present values: ",
+        paste0("\"", present, "\"", collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+    return(pyramid)
+  }
+
+  # pyramid == TRUE: derive ordering from the data.
+  if (length(present) != 2L) {
+    stop(
+      "`pyramid` requires `group = ", group_name, "` to have exactly 2 ",
+      "distinct values; found ", length(present),
+      if (length(present) > 0L)
+        paste0(" (", paste0("\"", present, "\"", collapse = ", "), ")")
+      else "",
+      ". Pass `pyramid = c(\"left\", \"right\")` to set them explicitly.",
+      call. = FALSE
+    )
+  }
+
+  if (is.factor(group_vals)) {
+    lv <- levels(group_vals)
+    lv <- lv[lv %in% present]
+    return(lv)
+  }
+
+  male_match <- intersect(.statgl_male_labels, present)
+  if (length(male_match) == 1L) {
+    return(c(male_match, setdiff(present, male_match)))
+  }
+
+  present
 }

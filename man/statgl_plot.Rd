@@ -14,7 +14,7 @@ statgl_plot(
   title = NULL,
   subtitle = NULL,
   caption = NULL,
-  show_last_value = TRUE,
+  show_last_value = FALSE,
   xlab = NULL,
   ylab = NULL,
   tooltip = NULL,
@@ -26,6 +26,7 @@ statgl_plot(
   stacking = NULL,
   palette = "main",
   palette_reverse = FALSE,
+  pyramid = NULL,
   height = 300
 )
 }
@@ -98,6 +99,37 @@ charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking)
 Statgl palette is used. Ignored when \code{palette} is a vector of hex colours.
 If the named palette is not found, a warning is issued and the default
 Highcharts colours are used.}
+
+\item{pyramid}{Pyramid layout for two-group charts (e.g. population
+pyramids). Default \code{NULL} (or \code{FALSE}) draws a normal chart. Other forms:
+\itemize{
+\item \code{TRUE} — enable pyramid mode using the column passed to \verb{group =} as the
+splitting variable. The "left" side (whose values are mirrored across
+zero) is chosen by: (a) factor levels if the group column is a factor,
+(b) a male-label heuristic for character columns
+(\code{M}/\code{Mænd}/\code{Men}/\code{Angutit}/...), or (c) first appearance otherwise.
+\item A length-2 character vector such as \code{c("M", "K")} setting the left and
+right levels explicitly.
+}
+
+Pyramid requires \verb{group =} and that the group column resolves to exactly
+two distinct values present in the data. It composes with any \code{type}; if
+\code{type} is not supplied it defaults to \code{"bar"} (rather than the usual
+\code{"line"} inference for integer ages). For \code{"bar"} and \code{"column"},
+\code{stacking} defaults to \code{"normal"} so the two sides share the zero
+baseline; for \code{"area"}, \code{"line"} and friends it is left unset, since
+each series is already drawn from baseline 0 and forcing stacking on a
+mixed-sign area chart causes Highcharts to clip the negated side.
+
+Pyramid always renders horizontally (categorical axis vertical, value
+axis horizontal extending left/right of zero — the conventional
+orientation, equivalent to applying \code{ggplot2::coord_flip()}). For
+\code{type = "bar"} Highcharts handles this automatically; for \code{"area"},
+\code{"line"}, \code{"column"}, \code{"spline"} and \code{"areaspline"} it is achieved with
+\code{chart.inverted = TRUE}. The x-axis is set to \code{reversed = FALSE} so
+age 0 sits at the bottom. When \code{x} has more than ~30 distinct values
+and \code{height} is not passed explicitly, height is scaled up to as tall as
+is allowed.}
 
 \item{height}{Numeric chart height in pixels passed to
 \code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
