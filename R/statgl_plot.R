@@ -95,6 +95,14 @@
 #'   age 0 sits at the bottom. When `x` has more than ~30 distinct values
 #'   and `height` is not passed explicitly, height is scaled up to as tall as
 #'   is allowed.
+#' @param highlight_group Optional character vector of `group` values to
+#'   visually highlight in a grouped chart. Matching series are drawn in
+#'   the Statgl accent orange (`#faa41a`); all other series are drawn in
+#'   neutral grey (`#7d7d7d`). For line/area types the highlighted series
+#'   also get a thicker stroke and are brought to the front. Overrides
+#'   `palette` when set. Has no effect (with a warning) if `group =` is
+#'   not supplied. Useful for emphasising totals such as
+#'   `highlight_group = "I alt"` against a backdrop of category series.
 #' @param height Numeric chart height in pixels passed to
 #'   [highcharter::hc_chart()]. Defaults to `300`.
 #' @param legend_position Where to place the legend. One of `"top"`,
@@ -129,6 +137,7 @@ statgl_plot <- function(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
+  highlight_group = NULL,
   height = 300,
   legend_position = "bottom",
   ...
@@ -553,7 +562,10 @@ statgl_plot <- function(
   }
 
   # --- palette ---------------------------------------------------
-  if (!is.null(palette)) {
+  # When `highlight_group` is set we colour series ourselves below, so skip
+  # the palette pass entirely. That way users can pass the default
+  # `palette = "main"` together with `highlight_group` without conflict.
+  if (!is.null(palette) && is.null(highlight_group)) {
     # Get existing series from chart
     series_list <- chart$x$hc_opts$series
     if (is.null(series_list)) {
@@ -622,6 +634,65 @@ statgl_plot <- function(
     } else if (!is.null(palette) && !is.character(palette)) {
       # Direct vector of hex colours supplied
       chart <- highcharter::hc_colors(chart, palette)
+    }
+  }
+
+  # --- highlight_group -------------------------------------------
+  # Re-colour series so values in `highlight_group` are the Statgl accent
+  # orange and everything else is neutral grey. For line/area types we
+  # also bump the line weight and zIndex of the highlighted series so it
+  # reads as the foreground line.
+  if (!is.null(highlight_group)) {
+    if (!has_group) {
+      warning(
+        "`highlight_group` only applies to grouped charts; ignored ",
+        "because `group =` was not set.",
+        call. = FALSE
+      )
+    } else {
+      highlight_set <- as.character(highlight_group)
+      highlight_color <- "#faa41a"
+      neutral_color   <- "#7d7d7d"
+
+      series_list <- chart$x$hc_opts$series
+      if (is.null(series_list)) {
+        series_list <- list()
+      }
+
+      series_names <- vapply(
+        series_list,
+        function(s) if (is.null(s$name)) NA_character_ else as.character(s$name),
+        character(1)
+      )
+
+      matched <- series_names %in% highlight_set
+
+      if (length(series_list) > 0L && !any(matched)) {
+        warning(
+          "`highlight_group` matched no series. Looked for ",
+          paste0("\"", highlight_set, "\"", collapse = ", "),
+          "; series are ",
+          paste0("\"", series_names, "\"", collapse = ", "),
+          ".",
+          call. = FALSE
+        )
+      }
+
+      cols <- ifelse(matched, highlight_color, neutral_color)
+      chart <- highcharter::hc_colors(chart, cols)
+
+      # Emphasise highlighted lines / areas: thicker stroke + foreground.
+      if (type %in% c("line", "spline", "area", "areaspline")) {
+        for (i in seq_along(series_list)) {
+          if (isTRUE(matched[i])) {
+            series_list[[i]]$lineWidth <- 3
+            series_list[[i]]$zIndex    <- 5
+          } else {
+            series_list[[i]]$zIndex    <- 1
+          }
+        }
+        chart$x$hc_opts$series <- series_list
+      }
     }
   }
 

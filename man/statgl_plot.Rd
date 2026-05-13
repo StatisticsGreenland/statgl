@@ -27,6 +27,7 @@ statgl_plot(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
+  highlight_group = NULL,
   height = 300,
   legend_position = "bottom",
   ...
@@ -143,6 +144,15 @@ orientation, equivalent to applying \code{ggplot2::coord_flip()}). For
 age 0 sits at the bottom. When \code{x} has more than ~30 distinct values
 and \code{height} is not passed explicitly, height is scaled up to as tall as
 is allowed.}
+
+\item{highlight_group}{Optional character vector of \code{group} values to
+visually highlight in a grouped chart. Matching series are drawn in
+the Statgl accent orange (\verb{#faa41a}); all other series are drawn in
+neutral grey (\verb{#7d7d7d}). For line/area types the highlighted series
+also get a thicker stroke and are brought to the front. Overrides
+\code{palette} when set. Has no effect (with a warning) if \verb{group =} is
+not supplied. Useful for emphasising totals such as
+\code{highlight_group = "I alt"} against a backdrop of category series.}
 
 \item{height}{Numeric chart height in pixels passed to
 \code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
