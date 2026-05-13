@@ -27,7 +27,9 @@ statgl_plot(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
-  height = 300
+  height = 300,
+  legend_position = "bottom",
+  ...
 )
 }
 \arguments{
@@ -103,11 +105,11 @@ Highcharts colours are used.}
 \item{pyramid}{Pyramid layout for two-group charts (e.g. population
 pyramids). Default \code{NULL} (or \code{FALSE}) draws a normal chart. Other forms:
 \itemize{
-\item \code{TRUE} — enable pyramid mode using the column passed to \verb{group =} as the
+\item \code{TRUE} -- enable pyramid mode using the column passed to \verb{group =} as the
 splitting variable. The "left" side (whose values are mirrored across
 zero) is chosen by: (a) factor levels if the group column is a factor,
 (b) a male-label heuristic for character columns
-(\code{M}/\code{Mænd}/\code{Men}/\code{Angutit}/...), or (c) first appearance otherwise.
+(\code{M}/\verb{M\\u00e6nd}/\code{Men}/\code{Angutit}/...), or (c) first appearance otherwise.
 \item A length-2 character vector such as \code{c("M", "K")} setting the left and
 right levels explicitly.
 }
@@ -122,7 +124,7 @@ each series is already drawn from baseline 0 and forcing stacking on a
 mixed-sign area chart causes Highcharts to clip the negated side.
 
 Pyramid always renders horizontally (categorical axis vertical, value
-axis horizontal extending left/right of zero — the conventional
+axis horizontal extending left/right of zero -- the conventional
 orientation, equivalent to applying \code{ggplot2::coord_flip()}). For
 \code{type = "bar"} Highcharts handles this automatically; for \code{"area"},
 \code{"line"}, \code{"column"}, \code{"spline"} and \code{"areaspline"} it is achieved with
@@ -133,6 +135,15 @@ is allowed.}
 
 \item{height}{Numeric chart height in pixels passed to
 \code{\link[highcharter:hc_chart]{highcharter::hc_chart()}}. Defaults to \code{300}.}
+
+\item{legend_position}{Where to place the legend. One of \code{"top"},
+\code{"bottom"} (default), \code{"left"}, \code{"right"}. Any other value (e.g.
+\code{"none"}, \code{NULL}, \code{FALSE}) hides the legend.}
+
+\item{...}{Additional arguments forwarded to \code{\link[highcharter:hchart]{highcharter::hchart()}}.
+Names that collide with arguments \code{statgl_plot()} already sets
+(\code{object}, \code{type}, \code{mapping}, \code{name}) are silently ignored so the
+wrapper's own values win.}
 }
 \value{
 A \link[highcharter:highchart]{highcharter::highchart} object.

@@ -58,11 +58,11 @@
 #'   Highcharts colours are used.
 #' @param pyramid Pyramid layout for two-group charts (e.g. population
 #'   pyramids). Default `NULL` (or `FALSE`) draws a normal chart. Other forms:
-#'   * `TRUE` — enable pyramid mode using the column passed to `group =` as the
+#'   * `TRUE` -- enable pyramid mode using the column passed to `group =` as the
 #'     splitting variable. The "left" side (whose values are mirrored across
 #'     zero) is chosen by: (a) factor levels if the group column is a factor,
 #'     (b) a male-label heuristic for character columns
-#'     (`M`/`Mænd`/`Men`/`Angutit`/...), or (c) first appearance otherwise.
+#'     (`M`/`M\u00e6nd`/`Men`/`Angutit`/...), or (c) first appearance otherwise.
 #'   * A length-2 character vector such as `c("M", "K")` setting the left and
 #'     right levels explicitly.
 #'
@@ -76,7 +76,7 @@
 #'   mixed-sign area chart causes Highcharts to clip the negated side.
 #'
 #'   Pyramid always renders horizontally (categorical axis vertical, value
-#'   axis horizontal extending left/right of zero — the conventional
+#'   axis horizontal extending left/right of zero -- the conventional
 #'   orientation, equivalent to applying `ggplot2::coord_flip()`). For
 #'   `type = "bar"` Highcharts handles this automatically; for `"area"`,
 #'   `"line"`, `"column"`, `"spline"` and `"areaspline"` it is achieved with
@@ -86,6 +86,13 @@
 #'   is allowed.
 #' @param height Numeric chart height in pixels passed to
 #'   [highcharter::hc_chart()]. Defaults to `300`.
+#' @param legend_position Where to place the legend. One of `"top"`,
+#'   `"bottom"` (default), `"left"`, `"right"`. Any other value (e.g.
+#'   `"none"`, `NULL`, `FALSE`) hides the legend.
+#' @param ... Additional arguments forwarded to [highcharter::hchart()].
+#'   Names that collide with arguments `statgl_plot()` already sets
+#'   (`object`, `type`, `mapping`, `name`) are silently ignored so the
+#'   wrapper's own values win.
 #'
 #' @return A [highcharter::highchart] object.
 statgl_plot <- function(
@@ -111,7 +118,9 @@ statgl_plot <- function(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
-  height = 300
+  height = 300,
+  legend_position = "bottom",
+  ...
 ) {
   # --- number formatting setup -----------------------------------
   big_mark_missing <- missing(big.mark)
@@ -158,9 +167,29 @@ statgl_plot <- function(
 
   mapping <- rlang::eval_tidy(mapping_expr)
 
+  # --- y validation ---------------------------------------------
+  # Warn (don't error) if the input y has negative values. This runs on
+  # the *original* y, before any pyramid mirroring, so the check is about
+  # what the user actually passed in. Only fires when y resolves to a bare
+  # column name -- expression y's (e.g. `y = log(value)`) are left alone.
+  if (rlang::is_symbol(y_expr)) {
+    y_name_check <- rlang::as_name(y_expr)
+    if (y_name_check %in% names(df)) {
+      y_vals_check <- df[[y_name_check]]
+      if (is.numeric(y_vals_check) && any(y_vals_check < 0, na.rm = TRUE)) {
+        warning(
+          "`y` column \"", y_name_check, "\" contains negative values. ",
+          "`statgl_plot()` expects non-negative y; the chart may render ",
+          "unexpectedly.",
+          call. = FALSE
+        )
+      }
+    }
+  }
+
   # --- pyramid setup --------------------------------------------
   # Resolve pyramid early so we can mutate `df` *before* hchart() builds
-  # series. Uses the same `group =` column as the rest of the function — it is
+  # series. Uses the same `group =` column as the rest of the function -- it is
   # a modifier on a grouped chart, not its own grouping mechanism.
   pyramid_on     <- !is.null(pyramid) && !identical(pyramid, FALSE)
   pyramid_levels <- NULL
@@ -231,7 +260,7 @@ statgl_plot <- function(
 
     # For bar/column pyramids the two sides need a shared baseline, otherwise
     # they render dodged side-by-side. Force `stacking = "normal"` only for
-    # those types — area/line/spline don't need it (each series is already
+    # those types -- area/line/spline don't need it (each series is already
     # drawn from the zero baseline) and forcing it on area in particular
     # collapses the auto-bounds of the negated side, clipping it visually.
     if (is.null(stacking) && type %in% c("bar", "column")) {
@@ -284,6 +313,16 @@ statgl_plot <- function(
     args$name <- name
   }
 
+  # Forward any user-supplied `...` to hchart(), but never let it overwrite
+  # the args we already set on purpose above.
+  dots <- rlang::list2(...)
+  if (length(dots) > 0L) {
+    keep <- setdiff(names(dots), c("object", "type", "mapping", "name"))
+    if (length(keep) > 0L) {
+      args[keep] <- dots[keep]
+    }
+  }
+
   chart <- rlang::exec(highcharter::hchart, !!!args)
 
   # Pyramid implies a coord-flip-style horizontal layout (categorical axis
@@ -327,7 +366,7 @@ statgl_plot <- function(
 
   # Pyramid charts are always inverted (bar auto-inverts, others get
   # chart.inverted = TRUE above), and Highcharts defaults xAxis.reversed to
-  # TRUE on inverted charts — which puts the largest value at the bottom.
+  # TRUE on inverted charts -- which puts the largest value at the bottom.
   # Override so age 0 sits at the bottom and age 100 at the top, regardless
   # of pyramid type.
   if (pyramid_on) {
@@ -566,12 +605,35 @@ statgl_plot <- function(
   chart <- highcharter::hc_chart(chart, height = height)
 
   # --- legend ----------------------------------------------------
-  chart <- highcharter::hc_legend(
-    chart,
-    itemStyle = list(
-      color = "#7d7d7d"
-    )
-  )
+  # `legend_position`: one of top/bottom/left/right places the legend;
+  # anything else (including NULL/FALSE/"none") hides it.
+  legend_args <- list(itemStyle = list(color = "#7d7d7d"))
+
+  legend_position_lc <- if (
+    is.character(legend_position) && length(legend_position) == 1L
+  ) tolower(legend_position) else ""
+
+  if (legend_position_lc == "top") {
+    legend_args$align <- "center"
+    legend_args$verticalAlign <- "top"
+    legend_args$layout <- "horizontal"
+  } else if (legend_position_lc == "bottom") {
+    legend_args$align <- "center"
+    legend_args$verticalAlign <- "bottom"
+    legend_args$layout <- "horizontal"
+  } else if (legend_position_lc == "left") {
+    legend_args$align <- "left"
+    legend_args$verticalAlign <- "middle"
+    legend_args$layout <- "vertical"
+  } else if (legend_position_lc == "right") {
+    legend_args$align <- "right"
+    legend_args$verticalAlign <- "middle"
+    legend_args$layout <- "vertical"
+  } else {
+    legend_args$enabled <- FALSE
+  }
+
+  chart <- do.call(highcharter::hc_legend, c(list(chart), legend_args))
 
   chart <- htmlwidgets::onRender(
     chart,
@@ -635,7 +697,7 @@ statgl_plot <- function(
 # uses. Used by `pyramid = TRUE` to default males to the left side when the
 # group column is character (factor users get control via factor levels).
 .statgl_male_labels <- c(
-  "M", "Mænd", "Maend", "Mand", "Men", "Male",
+  "M", "M\u00e6nd", "Maend", "Mand", "Men", "Male",
   "Angutit", "Angut"
 )
 
