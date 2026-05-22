@@ -1,3 +1,25 @@
+# statgl (development version)
+
+# statgl 0.5.2.9000
+
+* `statgl_plot()` gains a `position` argument for bar/column charts:
+  `"stack"`, `"percent"`, or `"dodge"` (bars side-by-side within each
+  category). Supersedes `stacking` when both are set.
+* `statgl_plot()` now accepts `group = c(g1, g2)` for two-variable pyramid
+  charts. `g1` determines the left/right pyramid split; `g2` is the fill
+  dimension — sub-bars coloured consistently across both sides with the
+  legend showing only the `g2` values. Combine with `position` to control
+  layout: `"stack"` (default), `"percent"`, or `"dodge"` (symmetric mirror
+  around centre).
+* `statgl_plot()` gains a `download_data` argument (default `TRUE`) that adds
+  a context-menu button for downloading chart data as CSV/XLS or viewing it
+  inline. Set `FALSE` to suppress.
+* `statgl_crosstable()` and `statgl_table()` gain a `.footnote` argument.
+  Pass a named character vector — names become bold titles, values the note
+  text: `c(\`Note\` = "Values are preliminary.")`. Replaces the old pattern of
+  piping through `kableExtra::footnote()`, which broke when these functions
+  became htmlwidgets in 0.5.2.
+
 # statgl 0.5.2
 
 This release is a substantial refactor of `statgl_table()` and

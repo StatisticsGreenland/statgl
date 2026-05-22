@@ -45,6 +45,14 @@
 #'     printed table (after `.row_group` is stripped out), or
 #'   * a one-sided formula (e.g. `~ year == max(year)`) evaluated on the
 #'     formatted data frame; it must return a logical vector.
+#' @param .footnote Optional footnote(s) appended below the table. `NULL`
+#'   (default) adds nothing. Supply a character vector; **names** become
+#'   bold titles and values become the note text:
+#'   ```r
+#'   .footnote = c(`Note` = "Values are preliminary.",
+#'                 `Source` = "Statistics Greenland.")
+#'   ```
+#'   An unnamed scalar (`"Text only"`) is also accepted.
 #' @param .as_html Logical; if `FALSE` (default), returns an
 #'   `htmlwidget` that renders correctly in every context — the
 #'   RStudio Viewer when called interactively, knitr / Quarto chunks,
@@ -88,6 +96,7 @@ statgl_table <- function(
   .bottom_rule = TRUE,
   .caption = NULL,
   .bold_rows = NULL, # numeric / character / formula
+  .footnote = NULL,
   .as_html = FALSE
 ) {
   if (!is.data.frame(df)) {
@@ -233,18 +242,12 @@ statgl_table <- function(
     )
   }
 
-  # --- Escape hatch: plain character HTML (legacy shortcode path) --------
-  if (isTRUE(.as_html)) {
-    return(hide_mobile_css(as.character(k), hide_idx))
-  }
+  # --- Finalise HTML (footnotes injected into <tfoot>, then mobile CSS) ---
+  html_out <- inject_footnotes(hide_mobile_css(as.character(k), hide_idx),
+                               .footnote)
 
-  # --- Default: wrap the rendered table in an htmlwidget -----------------
-  # The widget framework gives us the same Quarto / knitr / RStudio
-  # integration that statgl_plot() gets from highcharter: a single
-  # return value that opens in the Viewer, renders in chunks, and
-  # interpolates cleanly into Quarto shortcode parameters.
-  k_with_css <- attach_hide_mobile_css(k, hide_idx)
-  statgl_table_widget(as.character(k_with_css))
+  if (isTRUE(.as_html)) return(html_out)
+  statgl_table_widget(html_out)
 }
 
 #' Crosstable helper for Statgl
@@ -326,6 +329,14 @@ statgl_table <- function(
 #'   bottom border on the last data row. Matches the Statistics
 #'   Greenland design convention. Same semantics as
 #'   [statgl_table()]'s `.bottom_rule`.
+#' @param .footnote Optional footnote(s) appended below the table. `NULL`
+#'   (default) adds nothing. Supply a character vector; **names** become
+#'   bold titles and values become the note text:
+#'   ```r
+#'   .footnote = c(`Note` = "Values are preliminary.",
+#'                 `Source` = "Statistics Greenland.")
+#'   ```
+#'   An unnamed scalar (`"Text only"`) is also accepted.
 #' @param .as_html Logical; if `FALSE` (default), returns an
 #'   `htmlwidget` that renders correctly in every context — the
 #'   RStudio Viewer when called interactively, knitr / Quarto chunks,
@@ -368,6 +379,7 @@ statgl_crosstable <- function(
   .replace_nas = NULL, # NULL / custom string (TRUE deprecated)
   .first_col_width = NULL,
   .bottom_rule = TRUE,
+  .footnote = NULL,
   .as_html = FALSE
 ) {
   if (!is.data.frame(df)) {
@@ -723,14 +735,12 @@ statgl_crosstable <- function(
     hide_idx <- which(hide_mask) + stub_span
   }
 
-  # --- Escape hatch: plain character HTML (legacy shortcode path) -------
-  if (isTRUE(.as_html)) {
-    return(hide_mobile_css(as.character(kb), hide_idx))
-  }
+  # --- Finalise HTML (footnotes injected into <tfoot>, then mobile CSS) ---
+  html_out <- inject_footnotes(hide_mobile_css(as.character(kb), hide_idx),
+                               .footnote)
 
-  # --- Default: wrap the rendered table in an htmlwidget --------------
-  kb_with_css <- attach_hide_mobile_css(kb, hide_idx)
-  statgl_table_widget(as.character(kb_with_css))
+  if (isTRUE(.as_html)) return(html_out)
+  statgl_table_widget(html_out)
 }
 
 # Internal helpers -------------------------------------------------------------
@@ -881,6 +891,34 @@ attach_hide_mobile_css <- function(kable_obj, hide_idx) {
   new_html <- hide_mobile_css(as.character(kable_obj), hide_idx)
   attributes(new_html) <- attributes(kable_obj)
   new_html
+}
+
+# Inject footnotes as a <tfoot> block into a rendered HTML table string.
+# `footnotes` is a named character vector: names become bold titles, values
+# are the note text. Unnamed elements (or those with empty names) have no
+# prefix. Returns `html` unchanged when `footnotes` is NULL or length-0.
+inject_footnotes <- function(html, footnotes) {
+  if (is.null(footnotes) || length(footnotes) == 0L) return(html)
+  nms <- names(footnotes)
+  rows <- vapply(seq_along(footnotes), function(i) {
+    prefix <- if (!is.null(nms) && nzchar(nms[[i]])) {
+      paste0("<strong>", nms[[i]], "</strong> ")
+    } else {
+      ""
+    }
+    paste0(
+      '<tr><td colspan="100" style="border:0;padding:3px 0 1px;',
+      'font-size:0.85em;color:#555;">',
+      prefix, footnotes[[i]],
+      "</td></tr>"
+    )
+  }, character(1))
+  tfoot <- paste0(
+    "<tfoot>\n",
+    paste(rows, collapse = "\n"),
+    "\n</tfoot>"
+  )
+  sub("</table>", paste0(tfoot, "\n</table>"), html, fixed = TRUE)
 }
 
 # Wrap a rendered HTML kable string with a media-query <style> block

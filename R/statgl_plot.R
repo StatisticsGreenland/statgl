@@ -18,8 +18,12 @@
 #'     values
 #'   * `"scatter"` otherwise.
 #' @param name Optional series name passed to [highcharter::hchart()].
-#' @param group Optional bare column name used to split data into series
-#'   (`highcharter::hcaes(group = ...)`).
+#' @param group Optional bare column name, or a two-variable expression
+#'   `c(g1, g2)`, used to split data into series. When a single name is
+#'   supplied the behaviour is unchanged. When `c(g1, g2)` is supplied, `g1`
+#'   is the pyramid-split variable (determines left/right side) and `g2` is
+#'   the fill dimension: each `g2` value becomes a sub-bar with a consistent
+#'   colour across both pyramid sides. See `position` for layout control.
 #' @param title,subtitle,caption Optional text annotations added via
 #'   [highcharter::hc_title()], [highcharter::hc_subtitle()] and
 #'   [highcharter::hc_caption()]. Titles and subtitles are left-aligned;
@@ -48,6 +52,13 @@
 #'   `"."`; other values -> decimal `"."`, big mark `","`).
 #' @param stacking Optional stacking mode for `"area"`, `"column"` and `"bar"`
 #'   charts. One of `"normal"` or `"percent"`, or `NULL` (no stacking).
+#'   Superseded by `position` when both are set.
+#' @param position Sub-bar positioning for `"bar"` / `"column"` charts.
+#'   One of `"stack"` (`stacking = "normal"`), `"percent"`, or `"dodge"`
+#'   (bars placed side-by-side within each category). `NULL` (default) defers
+#'   to `stacking`. When both are set, `position` wins. In pyramid mode with
+#'   `group = c(g1, g2)`, `"dodge"` reverses the `g2` order on the left side
+#'   so sub-bars mirror symmetrically around zero.
 #' @param palette Optional palette specification for the series colours. Either:
 #'   * a single character name of an element in `statgl_palettes` (e.g.
 #'     `"main"`, `"winter"`, `"autumn"`), or
@@ -118,6 +129,10 @@
 #' @param legend_position Where to place the legend. One of `"top"`,
 #'   `"bottom"` (default), `"left"`, `"right"`. Any other value (e.g.
 #'   `"none"`, `NULL`, `FALSE`) hides the legend.
+#' @param download_data Logical; defaults `TRUE`. When `TRUE`, loads
+#'   Highcharts' `export-data.js` module and adds a context-menu button with
+#'   options to download the chart data as CSV, XLS, or view the data table
+#'   inline. Set to `FALSE` to suppress the export menu entirely.
 #' @param ... Additional arguments forwarded to [highcharter::hchart()].
 #'   Names that collide with arguments `statgl_plot()` already sets
 #'   (`object`, `type`, `mapping`, `name`) are silently ignored so the
@@ -144,12 +159,14 @@ statgl_plot <- function(
   decimal.mark = ",",
   locale = NULL,
   stacking = NULL,
+  position = NULL,
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
   highlight = NULL,
   height = 300,
   legend_position = "bottom",
+  download_data = TRUE,
   ...
 ) {
   # --- number formatting setup -----------------------------------
@@ -181,6 +198,20 @@ statgl_plot <- function(
   x_expr <- rlang::enexpr(x)
   y_expr <- rlang::enexpr(y)
   group_expr <- rlang::enexpr(group)
+
+  # Two-group: c(g1, g2) — g1 is the pyramid split, g2 is the fill dimension.
+  # Strip g2 out early so all existing pyramid/mapping logic runs on g1 only.
+  has_fill_group <- FALSE
+  fill_group_expr <- NULL
+  if (!rlang::is_missing(group_expr) &&
+      !identical(group_expr, rlang::expr(NULL)) &&
+      is.call(group_expr) &&
+      identical(as.character(group_expr[[1L]]), "c") &&
+      length(group_expr) == 3L) {
+    fill_group_expr <- group_expr[[3L]]
+    group_expr      <- group_expr[[2L]]
+    has_fill_group  <- TRUE
+  }
 
   has_group <- !rlang::is_missing(group_expr) &&
     !identical(group_expr, rlang::expr(NULL))
@@ -321,6 +352,61 @@ statgl_plot <- function(
         }
       }
     }
+  }
+
+  # --- two-group: combined column + rebuild mapping ----------------
+  # g2_vals is set here and referenced later in the palette section.
+  g2_vals <- NULL
+  if (has_fill_group) {
+    g1_col <- rlang::as_name(group_expr)
+    g2_col <- rlang::as_name(fill_group_expr)
+
+    if (!g2_col %in% names(df)) {
+      stop(
+        "`group` fill variable \"", g2_col, "\" not found in `df`.",
+        call. = FALSE
+      )
+    }
+
+    # Respect factor levels for g2 ordering; otherwise first-appearance.
+    g2_raw  <- df[[g2_col]]
+    g2_vals <- if (is.factor(g2_raw)) {
+      lv <- levels(g2_raw)
+      lv[lv %in% unique(as.character(g2_raw))]
+    } else {
+      unique(as.character(g2_raw))
+    }
+
+    g1_ordered <- if (pyramid_on && !is.null(pyramid_levels)) {
+      pyramid_levels
+    } else {
+      unique(as.character(df[[g1_col]]))
+    }
+
+    # Combined factor: same g2 order on both sides. For "dodge" mode,
+    # pointPlacement (set later in the palette section) puts same-g2 bars
+    # at the exact same vertical offset on both sides, so no reversal needed.
+    combined_col    <- ".statgl_grp"
+    combined_levels <- c(
+      paste(g1_ordered[[1L]], g2_vals, sep = " – "),
+      if (length(g1_ordered) >= 2L)
+        paste(g1_ordered[[2L]], g2_vals, sep = " – ")
+      else
+        character(0L)
+    )
+
+    df[[combined_col]] <- factor(
+      paste(as.character(df[[g1_col]]),
+            as.character(df[[g2_col]]),
+            sep = " – "),
+      levels = combined_levels
+    )
+
+    # Rebuild mapping so hchart() groups by the combined column.
+    combined_sym <- rlang::sym(combined_col)
+    mapping <- rlang::eval_tidy(
+      rlang::expr(highcharter::hcaes(!!x_expr, !!y_expr, group = !!combined_sym))
+    )
   }
 
   # --- type inference --------------------------------------------
@@ -468,6 +554,31 @@ statgl_plot <- function(
       chart,
       formatter = highcharter::JS(tooltip)
     )
+  } else if (has_fill_group && pyramid_on && !is.null(pyramid_levels)) {
+    # Two-group pyramid: show the g1 side label (gender / left-right) so the
+    # reader knows which side they're hovering. y < 0 = left side = g1_left.
+    pf_js <- highcharter::JS(sprintf(
+      'function() {
+         var g1 = this.y < 0 ? "%s" : "%s";
+         var g2 = (this.series && this.series.name) ? " / " + this.series.name : "";
+         var value = Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
+         return g1 + g2 + ": " + value;
+       }',
+      js_escape(pyramid_levels[[1L]]),
+      js_escape(pyramid_levels[[2L]]),
+      y_value_js,
+      digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+    chart <- highcharter::hc_tooltip(
+      chart,
+      shared        = FALSE,
+      valueDecimals = digits,
+      valueSuffix   = suffix,
+      pointFormatter = pf_js
+    )
   } else {
     # Build a pointFormatter that optionally prepends the series name
     if (has_group) {
@@ -515,6 +626,32 @@ statgl_plot <- function(
   )
 
   # --- dataLabels + stacking -------------------------------------
+  # position overrides stacking for bar/column charts.
+  if (!is.null(position)) {
+    if (!type %in% c("bar", "column")) {
+      warning(
+        "`position` is only supported for \"bar\" and \"column\" charts; ",
+        "ignored for type \"", type, "\".",
+        call. = FALSE
+      )
+    } else {
+      stacking <- switch(
+        position,
+        "stack"   = "normal",
+        "percent" = "percent",
+        "dodge"   = NULL,
+        {
+          warning(
+            "`position` must be \"stack\", \"percent\", or \"dodge\"; ",
+            "got \"", position, "\". Ignoring.",
+            call. = FALSE
+          )
+          stacking
+        }
+      )
+    }
+  }
+
   series_opts <- list()
 
   if (isTRUE(show_last_value)) {
@@ -576,73 +713,116 @@ statgl_plot <- function(
   # the palette pass entirely. That way users can pass the default
   # `palette = "main"` together with `highlight` without conflict.
   if (!is.null(palette) && is.null(highlight)) {
-    # Get existing series from chart
     series_list <- chart$x$hc_opts$series
-    if (is.null(series_list)) {
-      series_list <- list()
-    }
+    if (is.null(series_list)) series_list <- list()
 
-    # Named Statgl palette?
-    if (
-      is.character(palette) &&
-        length(palette) == 1L &&
-        exists("statgl_palettes", inherits = TRUE)
-    ) {
+    # Resolve base palette colours (shared by both branches).
+    base_pal <- NULL
+    if (is.character(palette) && length(palette) == 1L &&
+        exists("statgl_palettes", inherits = TRUE)) {
       pal_list <- get("statgl_palettes", inherits = TRUE)
       base_pal <- pal_list[[palette]]
-
       if (is.null(base_pal)) {
         warning(
-          "Palette '",
-          palette,
+          "Palette '", palette,
           "' not found in statgl_palettes; using Highcharts defaults."
         )
+      } else if (isTRUE(palette_reverse)) {
+        base_pal <- rev(base_pal)
+      }
+    } else if (is.character(palette) && length(palette) > 1L) {
+      base_pal <- if (isTRUE(palette_reverse)) rev(palette) else palette
+    }
+
+    if (has_fill_group && length(series_list) > 0L && !is.null(base_pal) &&
+        !is.null(g2_vals)) {
+      # Two-group: assign colour by g2 value, consistent across both pyramid
+      # sides. Right-side series are shown in the legend (renamed to their g2
+      # value); left-side series are hidden from the legend.
+      ramp        <- grDevices::colorRampPalette(base_pal)
+      g2_color_map <- stats::setNames(ramp(length(g2_vals)), g2_vals)
+
+      left_prefix <- if (pyramid_on && !is.null(pyramid_levels)) {
+        paste0(pyramid_levels[[1L]], " – ")
       } else {
-        if (isTRUE(palette_reverse)) {
-          base_pal <- rev(base_pal)
+        NULL
+      }
+
+      # For dodge mode: disable Highcharts' automatic grouping and assign
+      # identical pointPlacement to same-g2 series on both pyramid sides so
+      # matching bars sit at exactly the same vertical offset (mirror symmetry).
+      # pointWidth is derived from chart height + category count to prevent
+      # bars overlapping.
+      dodge_placements    <- NULL
+      dodge_point_padding <- NULL
+      if (identical(position, "dodge") && length(g2_vals) >= 1L) {
+        n_g2 <- length(g2_vals)
+        gp   <- 0.2  # Highcharts default groupPadding
+        # Derive pointPadding so bars just touch.
+        # Auto bar width = catH * (1-2*gp) * (1-2*pp).
+        # For n bars to fill the available space: width = catH*(1-2*gp)/n.
+        # Solving: pp = (n-1) / (2*n).  Scales with any chart size.
+        dodge_point_padding <- (n_g2 - 1L) / (2L * n_g2)
+        bar_spacing <- (1 - 2 * gp) / n_g2
+        dodge_placements <- stats::setNames(
+          seq(-(n_g2 - 1L) * bar_spacing / 2,
+               (n_g2 - 1L) * bar_spacing / 2,
+               length.out = n_g2),
+          g2_vals
+        )
+      }
+
+      for (i in seq_along(series_list)) {
+        sname  <- as.character(series_list[[i]]$name)
+        # Extract g2 value: strip "<g1> – " prefix.
+        g2_val <- sub("^.+? – ", "", sname)
+        # Sanitised id for linkedTo (spaces -> underscores).
+        safe_id <- paste0("statgl_grp_", gsub("[^A-Za-z0-9_]", "_", g2_val))
+
+        series_list[[i]]$color <- g2_color_map[[g2_val]]
+        series_list[[i]]$name  <- g2_val
+
+        is_left <- !is.null(left_prefix) && startsWith(sname, left_prefix)
+        if (is_left) {
+          # Hide from legend but link so clicking the right-side legend item
+          # also toggles this series.
+          series_list[[i]]$showInLegend <- FALSE
+          series_list[[i]]$linkedTo     <- safe_id
+        } else {
+          series_list[[i]]$id <- safe_id
         }
 
-        # Special case: ungrouped column/bar chart -> colour *each bar*
-        if (
-          !has_group &&
-            type %in% c("column", "bar") &&
-            length(series_list) == 1L
-        ) {
-          n_points <- length(series_list[[1]]$data)
-          if (n_points < 1L) {
-            n_points <- 1L
-          }
-
-          ramp <- grDevices::colorRampPalette(base_pal)
-          cols <- ramp(n_points)
-
-          for (i in seq_len(n_points)) {
-            d <- series_list[[1]]$data[[i]]
-            if (is.list(d)) {
-              d$color <- cols[i]
-            } else {
-              # data might be a bare y value
-              d <- list(y = d, color = cols[i])
-            }
-            series_list[[1]]$data[[i]] <- d
-          }
-
-          chart$x$hc_opts$series <- series_list
-        } else {
-          # Default: colour per series (lines, grouped columns, etc.)
-          n_series <- length(series_list)
-          if (n_series < 1L) {
-            n_series <- 1L
-          }
-
-          ramp <- grDevices::colorRampPalette(base_pal)
-          pal_vals <- ramp(n_series)
-
-          chart <- highcharter::hc_colors(chart, pal_vals)
+        if (!is.null(dodge_placements)) {
+          series_list[[i]]$grouping       <- FALSE
+          series_list[[i]]$pointPlacement <- unname(dodge_placements[[g2_val]])
+          series_list[[i]]$pointPadding   <- dodge_point_padding
         }
       }
+      chart$x$hc_opts$series <- series_list
+
+    } else if (!is.null(base_pal)) {
+      # Single-group: colour per series or per bar (existing logic).
+      if (!has_group && type %in% c("column", "bar") &&
+          length(series_list) == 1L) {
+        # Ungrouped column/bar: colour each bar individually.
+        n_points <- max(length(series_list[[1L]]$data), 1L)
+        ramp     <- grDevices::colorRampPalette(base_pal)
+        cols     <- ramp(n_points)
+        for (i in seq_len(n_points)) {
+          d <- series_list[[1L]]$data[[i]]
+          series_list[[1L]]$data[[i]] <- if (is.list(d)) {
+            d$color <- cols[i]; d
+          } else {
+            list(y = d, color = cols[i])
+          }
+        }
+        chart$x$hc_opts$series <- series_list
+      } else {
+        n_series <- max(length(series_list), 1L)
+        ramp     <- grDevices::colorRampPalette(base_pal)
+        chart    <- highcharter::hc_colors(chart, ramp(n_series))
+      }
     } else if (!is.null(palette) && !is.character(palette)) {
-      # Direct vector of hex colours supplied
       chart <- highcharter::hc_colors(chart, palette)
     }
   }
@@ -653,7 +833,12 @@ statgl_plot <- function(
   #   * grouped chart        -> match against series names (per-series colour)
   #   * ungrouped bar/column -> match against x values (per-point colour)
   #   * anything else        -> warn (nothing meaningful to single out)
-  if (!is.null(highlight)) {
+  if (!is.null(highlight) && has_fill_group) {
+    warning(
+      "`highlight` is not supported with two-variable `group = c(g1, g2)`.",
+      call. = FALSE
+    )
+  } else if (!is.null(highlight)) {
     highlight_set   <- as.character(highlight)
     highlight_color <- "#faa41a"
     neutral_color   <- "#d3d3d3"
@@ -778,6 +963,13 @@ statgl_plot <- function(
   # anything else (including NULL/FALSE/"none") hides it.
   legend_args <- list(itemStyle = list(color = "#7d7d7d"))
 
+  if (has_fill_group) {
+    legend_args$title <- list(
+      text  = rlang::as_name(fill_group_expr),
+      style = list(color = "#7d7d7d", fontWeight = "bold")
+    )
+  }
+
   legend_position_lc <- if (
     is.character(legend_position) && length(legend_position) == 1L
   ) tolower(legend_position) else ""
@@ -811,6 +1003,20 @@ statgl_plot <- function(
   }
 
   chart <- do.call(highcharter::hc_legend, c(list(chart), legend_args))
+
+  # --- data export -----------------------------------------------
+  if (isTRUE(download_data)) {
+    chart <- highcharter::hc_add_dependency(chart, "export-data.js")
+    chart <- highcharter::hc_exporting(
+      chart,
+      enabled = TRUE,
+      buttons = list(
+        contextButton = list(
+          menuItems = list("downloadCSV", "downloadXLS", "viewData")
+        )
+      )
+    )
+  }
 
   chart <- htmlwidgets::onRender(
     chart,
