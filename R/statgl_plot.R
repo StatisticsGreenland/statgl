@@ -108,16 +108,19 @@
 #'   and `height` is not passed explicitly, height is scaled up to as tall as
 #'   is allowed.
 #' @param highlight Optional character vector of labels to visually
-#'   emphasise. Matching elements are drawn in the Statgl accent orange
-#'   (`#faa41a`); everything else is drawn in neutral grey (`#d3d3d3`).
-#'   Overrides `palette` when set. Dispatch depends on chart shape:
+#'   emphasise. Dispatch depends on chart shape:
 #'   * **Grouped chart** (`group =` supplied): `highlight` matches against
-#'     series names (the `group` values). Line/area types additionally get
-#'     a thicker stroke and a higher `zIndex` so the highlighted series
-#'     sits in the foreground.
+#'     series names (the `group` values). Matching series keep their
+#'     palette colour at full opacity; non-matching series are drawn in
+#'     the same palette colour at reduced alpha (`0.2`) so the chart
+#'     keeps its palette identity rather than collapsing to grey.
+#'     Line/area types additionally get a thicker stroke (`lineWidth = 4`)
+#'     and a higher `zIndex` so the highlighted series sits in the
+#'     foreground.
 #'   * **Ungrouped bar / column chart**: `highlight` matches against the
-#'     `x` values, re-colouring individual bars. Useful for emphasising
-#'     one district, commodity, etc. on a per-bar chart.
+#'     `x` values, drawing matched bars in Statgl accent orange
+#'     (`#faa41a`) and the rest in neutral grey (`#d3d3d3`). Useful for
+#'     emphasising one district, commodity, etc. on a per-bar chart.
 #'   * **Anything else ungrouped** (line, scatter, ...): no-op with a
 #'     warning, since there's nothing series- or bar-shaped to single out.
 #'
@@ -709,10 +712,14 @@ statgl_plot <- function(
   }
 
   # --- palette ---------------------------------------------------
-  # When `highlight` is set we colour the chart ourselves below, so skip
-  # the palette pass entirely. That way users can pass the default
-  # `palette = "main"` together with `highlight` without conflict.
-  if (!is.null(palette) && is.null(highlight)) {
+  # Palette runs even when `highlight` is set for grouped charts; the
+  # highlight pass below then dims non-matched series via alpha rather
+  # than recolouring everything to grey, so the chart keeps its palette
+  # identity. Ungrouped bar/column highlight still uses orange/grey, so
+  # skip palette in that specific case to avoid wasted work.
+  skip_palette_for_highlight <- !is.null(highlight) &&
+    !has_group && type %in% c("bar", "column")
+  if (!is.null(palette) && !skip_palette_for_highlight) {
     series_list <- chart$x$hc_opts$series
     if (is.null(series_list)) series_list <- list()
 
@@ -828,10 +835,10 @@ statgl_plot <- function(
   }
 
   # --- highlight -------------------------------------------------
-  # Re-colour the chart so values in `highlight` are the Statgl accent
-  # orange and everything else is neutral grey. Dispatch by shape:
-  #   * grouped chart        -> match against series names (per-series colour)
-  #   * ungrouped bar/column -> match against x values (per-point colour)
+  # Emphasise values in `highlight`. Dispatch by shape:
+  #   * grouped chart        -> keep palette colour, dim non-matched via
+  #                             alpha, thicken stroke on matched
+  #   * ungrouped bar/column -> orange for matched, grey for rest
   #   * anything else        -> warn (nothing meaningful to single out)
   if (!is.null(highlight) && has_fill_group) {
     warning(
@@ -842,9 +849,14 @@ statgl_plot <- function(
     highlight_set   <- as.character(highlight)
     highlight_color <- "#faa41a"
     neutral_color   <- "#d3d3d3"
+    dim_alpha       <- 0.2
+    highlight_lw    <- 4
 
     if (has_group) {
       # --- per-series highlight ----------------------------------
+      # Keep palette colours; dim non-matched series via alpha so the
+      # chart retains its colour identity. Highlighted series get full
+      # opacity plus a thicker stroke (lines/areas) and foreground zIndex.
       series_list <- chart$x$hc_opts$series
       if (is.null(series_list)) {
         series_list <- list()
@@ -869,21 +881,43 @@ statgl_plot <- function(
         )
       }
 
-      cols <- ifelse(matched, highlight_color, neutral_color)
-      chart <- highcharter::hc_colors(chart, cols)
+      # Pull the resolved palette colours the palette pass put in place.
+      # Falls back to Highcharts defaults if no palette resolved (e.g.
+      # palette = NULL or an unknown name).
+      chart_colors <- chart$x$hc_opts$colors
+      if (is.null(chart_colors) || length(chart_colors) == 0L) {
+        chart_colors <- c(
+          "#2caffe", "#544fc5", "#00e272", "#fe6a35", "#6b8abc",
+          "#d568fb", "#2ee0ca", "#fa4b42", "#feb56a", "#91e8e1"
+        )
+      }
+      chart_colors <- rep_len(unlist(chart_colors), max(length(series_list), 1L))
 
-      # Emphasise highlighted lines / areas: thicker stroke + foreground.
-      if (type %in% c("line", "spline", "area", "areaspline")) {
-        for (i in seq_along(series_list)) {
-          if (isTRUE(matched[i])) {
-            series_list[[i]]$lineWidth <- 3
+      is_line_like <- type %in% c("line", "spline", "area", "areaspline")
+
+      for (i in seq_along(series_list)) {
+        base_col <- if (!is.null(series_list[[i]]$color)) {
+          series_list[[i]]$color
+        } else {
+          chart_colors[[i]]
+        }
+
+        if (isTRUE(matched[i])) {
+          series_list[[i]]$color <- base_col
+          if (is_line_like) {
+            series_list[[i]]$lineWidth <- highlight_lw
             series_list[[i]]$zIndex    <- 5
-          } else {
-            series_list[[i]]$zIndex    <- 1
+          }
+        } else {
+          series_list[[i]]$color <- grDevices::adjustcolor(
+            base_col, alpha.f = dim_alpha
+          )
+          if (is_line_like) {
+            series_list[[i]]$zIndex <- 1
           }
         }
-        chart$x$hc_opts$series <- series_list
       }
+      chart$x$hc_opts$series <- series_list
 
     } else if (type %in% c("bar", "column")) {
       # --- per-point highlight on an ungrouped bar/column chart ---

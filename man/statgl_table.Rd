@@ -21,6 +21,7 @@ statgl_table(
   .bottom_rule = TRUE,
   .caption = NULL,
   .bold_rows = NULL,
+  .footnote = NULL,
   .as_html = FALSE
 )
 }
@@ -81,6 +82,16 @@ printed table (after \code{.row_group} is stripped out), or
 \item a one-sided formula (e.g. \code{~ year == max(year)}) evaluated on the
 formatted data frame; it must return a logical vector.
 }}
+
+\item{.footnote}{Optional footnote(s) appended below the table. \code{NULL}
+(default) adds nothing. Supply a character vector; \strong{names} become
+bold titles and values become the note text:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{.footnote = c(`Note` = "Values are preliminary.",
+              `Source` = "Statistics Greenland.")
+}\if{html}{\out{</div>}}
+
+An unnamed scalar (\code{"Text only"}) is also accepted.}
 
 \item{.as_html}{Logical; if \code{FALSE} (default), returns an
 \code{htmlwidget} that renders correctly in every context — the

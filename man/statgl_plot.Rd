@@ -24,12 +24,14 @@ statgl_plot(
   decimal.mark = ",",
   locale = NULL,
   stacking = NULL,
+  position = NULL,
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
   highlight = NULL,
   height = 300,
   legend_position = "bottom",
+  download_data = TRUE,
   ...
 )
 }
@@ -50,8 +52,12 @@ values
 
 \item{name}{Optional series name passed to \code{\link[highcharter:hchart]{highcharter::hchart()}}.}
 
-\item{group}{Optional bare column name used to split data into series
-(\code{highcharter::hcaes(group = ...)}).}
+\item{group}{Optional bare column name, or a two-variable expression
+\code{c(g1, g2)}, used to split data into series. When a single name is
+supplied the behaviour is unchanged. When \code{c(g1, g2)} is supplied, \code{g1}
+is the pyramid-split variable (determines left/right side) and \code{g2} is
+the fill dimension: each \code{g2} value becomes a sub-bar with a consistent
+colour across both pyramid sides. See \code{position} for layout control.}
 
 \item{title, subtitle, caption}{Optional text annotations added via
 \code{\link[highcharter:hc_title]{highcharter::hc_title()}}, \code{\link[highcharter:hc_subtitle]{highcharter::hc_subtitle()}} and
@@ -89,7 +95,15 @@ they are derived from \code{locale} (\code{"da"}/\code{"kl"} -> decimal \code{",
 \code{"."}; other values -> decimal \code{"."}, big mark \code{","}).}
 
 \item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"} and \code{"bar"}
-charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).}
+charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).
+Superseded by \code{position} when both are set.}
+
+\item{position}{Sub-bar positioning for \code{"bar"} / \code{"column"} charts.
+One of \code{"stack"} (\code{stacking = "normal"}), \code{"percent"}, or \code{"dodge"}
+(bars placed side-by-side within each category). \code{NULL} (default) defers
+to \code{stacking}. When both are set, \code{position} wins. In pyramid mode with
+\code{group = c(g1, g2)}, \code{"dodge"} reverses the \code{g2} order on the left side
+so sub-bars mirror symmetrically around zero.}
 
 \item{palette}{Optional palette specification for the series colours. Either:
 \itemize{
@@ -147,17 +161,20 @@ and \code{height} is not passed explicitly, height is scaled up to as tall as
 is allowed.}
 
 \item{highlight}{Optional character vector of labels to visually
-emphasise. Matching elements are drawn in the Statgl accent orange
-(\verb{#faa41a}); everything else is drawn in neutral grey (\verb{#d3d3d3}).
-Overrides \code{palette} when set. Dispatch depends on chart shape:
+emphasise. Dispatch depends on chart shape:
 \itemize{
 \item \strong{Grouped chart} (\verb{group =} supplied): \code{highlight} matches against
-series names (the \code{group} values). Line/area types additionally get
-a thicker stroke and a higher \code{zIndex} so the highlighted series
-sits in the foreground.
+series names (the \code{group} values). Matching series keep their
+palette colour at full opacity; non-matching series are drawn in
+the same palette colour at reduced alpha (\code{0.2}) so the chart
+keeps its palette identity rather than collapsing to grey.
+Line/area types additionally get a thicker stroke (\code{lineWidth = 4})
+and a higher \code{zIndex} so the highlighted series sits in the
+foreground.
 \item \strong{Ungrouped bar / column chart}: \code{highlight} matches against the
-\code{x} values, re-colouring individual bars. Useful for emphasising
-one district, commodity, etc. on a per-bar chart.
+\code{x} values, drawing matched bars in Statgl accent orange
+(\verb{#faa41a}) and the rest in neutral grey (\verb{#d3d3d3}). Useful for
+emphasising one district, commodity, etc. on a per-bar chart.
 \item \strong{Anything else ungrouped} (line, scatter, ...): no-op with a
 warning, since there's nothing series- or bar-shaped to single out.
 }
@@ -171,6 +188,11 @@ Nuuk bar; \code{statgl_plot(df, time, value, group = commodity, highlight = "I a
 \item{legend_position}{Where to place the legend. One of \code{"top"},
 \code{"bottom"} (default), \code{"left"}, \code{"right"}. Any other value (e.g.
 \code{"none"}, \code{NULL}, \code{FALSE}) hides the legend.}
+
+\item{download_data}{Logical; defaults \code{TRUE}. When \code{TRUE}, loads
+Highcharts' \code{export-data.js} module and adds a context-menu button with
+options to download the chart data as CSV, XLS, or view the data table
+inline. Set to \code{FALSE} to suppress the export menu entirely.}
 
 \item{...}{Additional arguments forwarded to \code{\link[highcharter:hchart]{highcharter::hchart()}}.
 Names that collide with arguments \code{statgl_plot()} already sets

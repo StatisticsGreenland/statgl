@@ -2,6 +2,14 @@
 
 # statgl 0.5.2.9000
 
+* `statgl_plot()`'s `highlight` argument no longer collapses non-matched
+  series to neutral grey on grouped line/area charts. Instead, the
+  resolved `palette` is preserved and non-matched series are dimmed via
+  alpha (`0.2`), while matched series keep full opacity and get a
+  thicker stroke (`lineWidth = 4`) plus foreground `zIndex`. Reads
+  much better in dark mode and pairs naturally with palettes like
+  `"dawn"`. Ungrouped bar/column highlight is unchanged
+  (orange-on-grey).
 * `statgl_plot()` gains a `position` argument for bar/column charts:
   `"stack"`, `"percent"`, or `"dodge"` (bars side-by-side within each
   category). Supersedes `stacking` when both are set.

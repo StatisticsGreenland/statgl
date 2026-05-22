@@ -24,6 +24,7 @@ statgl_crosstable(
   .replace_nas = NULL,
   .first_col_width = NULL,
   .bottom_rule = TRUE,
+  .footnote = NULL,
   .as_html = FALSE
 )
 }
@@ -116,6 +117,16 @@ warning.}
 bottom border on the last data row. Matches the Statistics
 Greenland design convention. Same semantics as
 \code{\link[=statgl_table]{statgl_table()}}'s \code{.bottom_rule}.}
+
+\item{.footnote}{Optional footnote(s) appended below the table. \code{NULL}
+(default) adds nothing. Supply a character vector; \strong{names} become
+bold titles and values become the note text:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{.footnote = c(`Note` = "Values are preliminary.",
+              `Source` = "Statistics Greenland.")
+}\if{html}{\out{</div>}}
+
+An unnamed scalar (\code{"Text only"}) is also accepted.}
 
 \item{.as_html}{Logical; if \code{FALSE} (default), returns an
 \code{htmlwidget} that renders correctly in every context — the
