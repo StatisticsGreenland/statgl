@@ -28,10 +28,9 @@
 #'   [highcharter::hc_title()], [highcharter::hc_subtitle()] and
 #'   [highcharter::hc_caption()]. Titles and subtitles are left-aligned;
 #'   captions are right-aligned.
-#' @param show_last_value Logical; defaults `FALSE`. If `TRUE`, adds data labels
+#' @param show_last_value Logical; defaults `TRUE`. Adds data labels
 #'   for the final point of each `"line"`, `"spline"` and `"area"` series, or
-#'   for all
-#'   bars in `"bar"` / `"column"` charts.
+#'   for all bars in `"bar"` / `"column"` charts.
 #' @param xlab,ylab Axis labels. If `NULL` or `""`, no axis title is shown and
 #'   any automatic titles inferred by [highcharter::hchart()] are disabled.
 #' @param tooltip Optional JavaScript string passed to
@@ -152,7 +151,7 @@ statgl_plot <- function(
   title = NULL,
   subtitle = NULL,
   caption = NULL,
-  show_last_value = FALSE,
+  show_last_value = TRUE,
   xlab = NULL,
   ylab = NULL,
   tooltip = NULL,
