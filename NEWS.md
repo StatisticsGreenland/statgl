@@ -1,4 +1,63 @@
-# statgl (development version)
+# statgl 0.5.2.9003
+
+* `statgl_plot()` gains a `series_tags` argument for attaching arbitrary
+  per-series metadata to the resulting Highcharts series. Pass a named
+  list of `tag_name = "column_name"`; each series gets a `tags` map
+  populated by looking up the column value(s) for the rows that produced
+  that series. Example:
+  `statgl_plot(df, date, group = `weather station`,
+              series_tags = list(station = "weather station"))`
+  emits series with `tags = {station: "Nuuk"}`, etc. Downstream JavaScript
+  (e.g. the `filter` shortcode in `statglshortcodes`) can read
+  `series.options.tags[<tag>]` to drive page-wide filtering and visibility
+  without relying on brittle series-name matching. For two-group charts
+  (`group = c(g1, g2)`) tags are keyed by the `g1` value so every
+  `(g1, g2)` series for the same `g1` carries the same tag — the
+  climate-style station filter then matches both the max and the min
+  series for one station in a single click. No-op for ungrouped charts;
+  warns if the source column is non-unique within a series (first value
+  wins).
+
+* `statgl_plot()`'s `group = c(g1, g2)` argument now works **outside
+  pyramid mode**. Previously this two-variable form was pyramid-only:
+  `g1` was the left/right split and `g2` was the fill dimension. It now
+  also handles the general "groups by `g1`, colour by `g2`" case:
+  - `g1` drives the series split (one line / bar / area per `g1` value)
+  - `g2` drives the colour and the legend (one entry per `g2` value;
+    series sharing a `g2` value are linked, so toggling the legend
+    toggles the whole family)
+  - the tooltip reads "`<g1> / <g2>: value`"
+
+  Replaces the previous workaround of building two single-group plots
+  with different palettes and manually splicing their series lists.
+  Pyramid two-group behaviour is unchanged (it now goes through the same
+  code path; the only visible difference is that the legend
+  representative is the first `g1` level rather than the last — labels,
+  colours, and click-to-toggle behaviour are the same).
+
+* `statgl_plot()`'s `palette` argument additionally accepts a **named
+  character vector** for two-group charts, mapping `g2` values directly
+  to colours:
+  `palette = c(Maks = "#fa8b2a", Min = "#2caffe")`.
+  Names are matched against the `g2` levels; when the map covers every
+  `g2` level it's used as-is. The single-palette-name and
+  unnamed-hex-vector forms are unchanged and still ramp across
+  `length(g2)` colours.
+
+* `statgl_plot()` no longer auto-sets a legend title from the `g2` column
+  name on two-group charts. Previously a pyramid `group = c(sex, age)`
+  chart got a bold "age" header above the legend; this read naturally for
+  pyramid but as a leaky implementation detail (raw column name like
+  "measuring") on non-pyramid two-group charts. Removed across the board
+  for consistency. Add a title explicitly via `%>% hc_legend(title =
+  list(text = "..."))` if you want one.
+
+## Internal
+
+* Replaced the en dashes in two-group pyramid series-name separators
+  with `–` R string escapes, and the em dash in one comment with
+  `--`, so `R CMD check` no longer warns about non-ASCII characters in
+  `statgl_plot.R`. User-visible labels are unchanged.
 
 # statgl 0.5.2.9000
 

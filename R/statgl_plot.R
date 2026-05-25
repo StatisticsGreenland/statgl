@@ -20,10 +20,18 @@
 #' @param name Optional series name passed to [highcharter::hchart()].
 #' @param group Optional bare column name, or a two-variable expression
 #'   `c(g1, g2)`, used to split data into series. When a single name is
-#'   supplied the behaviour is unchanged. When `c(g1, g2)` is supplied, `g1`
-#'   is the pyramid-split variable (determines left/right side) and `g2` is
-#'   the fill dimension: each `g2` value becomes a sub-bar with a consistent
-#'   colour across both pyramid sides. See `position` for layout control.
+#'   supplied the behaviour is unchanged. When `c(g1, g2)` is supplied,
+#'   `g1` drives the series split (one series per unique `g1` value) and
+#'   `g2` drives colour and the legend: every `g1` series sharing a `g2`
+#'   value gets the same colour, and the legend collapses to one entry per
+#'   `g2` value (the first series for each `g2` is the legend
+#'   representative; the rest are `linkedTo` it). Two-group composes with
+#'   `pyramid`: in pyramid mode `g1` is the pyramid-split variable (the two
+#'   sides) and `g2` is the fill dimension; in non-pyramid mode it's the
+#'   general "groups by `g1`, colour by `g2`" overlay (e.g. multiple
+#'   stations crossed with a min/max metric). See `palette` for the
+#'   colour-per-`g2`
+#'   syntax and `position` for layout control.
 #' @param title,subtitle,caption Optional text annotations added via
 #'   [highcharter::hc_title()], [highcharter::hc_subtitle()] and
 #'   [highcharter::hc_caption()]. Titles and subtitles are left-aligned;
@@ -63,6 +71,13 @@
 #'     `"main"`, `"winter"`, `"autumn"`), or
 #'   * a character vector of colour hex codes to pass directly to
 #'     [highcharter::hc_colors()].
+#'
+#'   For two-group charts (`group = c(g1, g2)`), `palette` additionally
+#'   accepts a **named character vector** mapping `g2` values directly
+#'   to colours, e.g.
+#'   `palette = c(Maks = "#fa8b2a", Min = "#2caffe")`. When the names
+#'   cover all `g2` levels, that map is used as-is; otherwise the vector
+#'   or named palette is ramped across `length(g2)` colours.
 #' @param palette_reverse Logical; if `TRUE`, reverse the palette when a named
 #'   Statgl palette is used. Ignored when `palette` is a vector of hex colours.
 #'   If the named palette is not found, a warning is issued and the default
@@ -106,6 +121,30 @@
 #'   age 0 sits at the bottom. When `x` has more than ~30 distinct values
 #'   and `height` is not passed explicitly, height is scaled up to as tall as
 #'   is allowed.
+#' @param series_tags Optional named list of length-1 character entries mapping
+#'   tag names to column names in `df`. For each series in the resulting chart,
+#'   the tag is set to the (unique) value of the named column among the rows
+#'   that produced that series. The tag is written into the Highcharts series
+#'   options as `series.tags[<tag_name>]`, which downstream JS (e.g. the
+#'   `statglshortcodes` `filter` shortcode) can read to drive page-wide
+#'   filtering and visibility without relying on series-name matching.
+#'
+#'   Typical use: `series_tags = list(station = "weather station")` on a chart
+#'   grouped by `weather station`. The tag's source column is usually the
+#'   `group` column, but any column that is 1:1 with the group will work; a
+#'   warning is issued if the column is non-unique within a series (the first
+#'   value is used).
+#'
+#'   For two-group charts (`group = c(g1, g2)`), tags are keyed by the `g1`
+#'   value: each (g1, g2) series is tagged with the (unique) tag-column value
+#'   for rows matching that g1 level. This lets the climate-style use case
+#'   `group = c(weather station, measure)` +
+#'   `series_tags = list(station = "weather station")` produce series that
+#'   all carry `tags.station = "Nuuk"` (etc.) so a page-level station filter
+#'   matches both the max and min series for that station.
+#'
+#'   Ignored when the chart has no grouped series (single-series charts have
+#'   no natural per-series key to tag).
 #' @param highlight Optional character vector of labels to visually
 #'   emphasise. Dispatch depends on chart shape:
 #'   * **Grouped chart** (`group =` supplied): `highlight` matches against
@@ -165,6 +204,7 @@ statgl_plot <- function(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
+  series_tags = NULL,
   highlight = NULL,
   height = 300,
   legend_position = "bottom",
@@ -201,7 +241,7 @@ statgl_plot <- function(
   y_expr <- rlang::enexpr(y)
   group_expr <- rlang::enexpr(group)
 
-  # Two-group: c(g1, g2) — g1 is the pyramid split, g2 is the fill dimension.
+  # Two-group: c(g1, g2) -- g1 is the pyramid split, g2 is the fill dimension.
   # Strip g2 out early so all existing pyramid/mapping logic runs on g1 only.
   has_fill_group <- FALSE
   fill_group_expr <- NULL
@@ -385,22 +425,20 @@ statgl_plot <- function(
       unique(as.character(df[[g1_col]]))
     }
 
-    # Combined factor: same g2 order on both sides. For "dodge" mode,
-    # pointPlacement (set later in the palette section) puts same-g2 bars
-    # at the exact same vertical offset on both sides, so no reversal needed.
+    # Combined factor: g1-major, g2 in consistent inner order. For "dodge"
+    # mode, pointPlacement (set later in the palette section) puts same-g2
+    # bars at the exact same offset across g1, so no reversal needed.
+    # In pyramid mode g1_ordered has length 2 (left, right); in the general
+    # non-pyramid case it can be any number of g1 values.
     combined_col    <- ".statgl_grp"
-    combined_levels <- c(
-      paste(g1_ordered[[1L]], g2_vals, sep = " – "),
-      if (length(g1_ordered) >= 2L)
-        paste(g1_ordered[[2L]], g2_vals, sep = " – ")
-      else
-        character(0L)
-    )
+    combined_levels <- unlist(lapply(g1_ordered, function(g1) {
+      paste(g1, g2_vals, sep = " \u2013 ")
+    }))
 
     df[[combined_col]] <- factor(
       paste(as.character(df[[g1_col]]),
             as.character(df[[g2_col]]),
-            sep = " – "),
+            sep = " \u2013 "),
       levels = combined_levels
     )
 
@@ -581,6 +619,32 @@ statgl_plot <- function(
       valueSuffix   = suffix,
       pointFormatter = pf_js
     )
+  } else if (has_fill_group) {
+    # Two-group non-pyramid: series.name is the g2 value, g1 is stored on
+    # series.options.g1_label. Show "g1 / g2: value" when g1 is present,
+    # otherwise just "g2: value".
+    pf_js <- highcharter::JS(sprintf(
+      'function() {
+         var s = this.series && this.series.options ? this.series.options : {};
+         var g1 = s.g1_label || "";
+         var g2 = (this.series && this.series.name) ? this.series.name : "";
+         var label = g1 ? (g1 + " / " + g2) : g2;
+         var value = Highcharts.numberFormat(%s, %d, "%s", "%s") + "%s";
+         return label + ": " + value;
+       }',
+      y_value_js,
+      digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+    chart <- highcharter::hc_tooltip(
+      chart,
+      shared         = FALSE,
+      valueDecimals  = digits,
+      valueSuffix    = suffix,
+      pointFormatter = pf_js
+    )
   } else {
     # Build a pointFormatter that optionally prepends the series name
     if (has_group) {
@@ -740,25 +804,40 @@ statgl_plot <- function(
       base_pal <- if (isTRUE(palette_reverse)) rev(palette) else palette
     }
 
-    if (has_fill_group && length(series_list) > 0L && !is.null(base_pal) &&
-        !is.null(g2_vals)) {
-      # Two-group: assign colour by g2 value, consistent across both pyramid
-      # sides. Right-side series are shown in the legend (renamed to their g2
-      # value); left-side series are hidden from the legend.
-      ramp        <- grDevices::colorRampPalette(base_pal)
-      g2_color_map <- stats::setNames(ramp(length(g2_vals)), g2_vals)
-
-      left_prefix <- if (pyramid_on && !is.null(pyramid_levels)) {
-        paste0(pyramid_levels[[1L]], " – ")
+    if (has_fill_group && length(series_list) > 0L && !is.null(g2_vals)) {
+      # Two-group: assign colour by g2 value, consistent across all g1
+      # levels. The first g1 encountered (per g1_ordered) is the legend
+      # representative for each g2; the rest are linked to it so they
+      # toggle together. Works for pyramid (g1_ordered = c(left, right))
+      # and the general non-pyramid case (g1_ordered is any number of
+      # levels).
+      #
+      # Palette resolution -- three accepted forms:
+      #   * named char vec covering g2_vals
+      #     (e.g. c(Maks = "#fa8b2a", Min = "#2caffe")) -> direct g2 lookup
+      #   * single palette name resolved earlier into base_pal -> ramp
+      #     across n_g2
+      #   * raw hex vector resolved into base_pal -> ramp/cycle across n_g2
+      g2_color_map <- NULL
+      if (is.character(palette) && length(palette) >= 1L &&
+          !is.null(names(palette)) &&
+          all(g2_vals %in% names(palette))) {
+        g2_color_map <- palette[g2_vals]
+      } else if (!is.null(base_pal)) {
+        ramp <- grDevices::colorRampPalette(base_pal)
+        g2_color_map <- stats::setNames(ramp(length(g2_vals)), g2_vals)
       } else {
-        NULL
+        # Fall back to Highcharts defaults sliced to n_g2.
+        defaults <- c("#2caffe", "#544fc5", "#00e272", "#fe6a35",
+                      "#6b8abc", "#d568fb", "#2ee0ca", "#fa4b42",
+                      "#feb56a", "#91e8e1")
+        ramp <- grDevices::colorRampPalette(defaults)
+        g2_color_map <- stats::setNames(ramp(length(g2_vals)), g2_vals)
       }
 
       # For dodge mode: disable Highcharts' automatic grouping and assign
-      # identical pointPlacement to same-g2 series on both pyramid sides so
-      # matching bars sit at exactly the same vertical offset (mirror symmetry).
-      # pointWidth is derived from chart height + category count to prevent
-      # bars overlapping.
+      # identical pointPlacement to same-g2 series across g1 so matching
+      # bars sit at exactly the same offset.
       dodge_placements    <- NULL
       dodge_point_padding <- NULL
       if (identical(position, "dodge") && length(g2_vals) >= 1L) {
@@ -778,24 +857,38 @@ statgl_plot <- function(
         )
       }
 
+      # Track g2 values we've already used a legend slot for; the first
+      # series for each g2 becomes the legend representative, the rest
+      # are linkedTo it.
+      seen_g2 <- character(0)
+      sep_dash <- " \u2013 "
+
       for (i in seq_along(series_list)) {
         sname  <- as.character(series_list[[i]]$name)
-        # Extract g2 value: strip "<g1> – " prefix.
-        g2_val <- sub("^.+? – ", "", sname)
+        # Split "<g1> -- <g2>" -> (g1_val, g2_val). Defensive fallback:
+        # if the separator isn't present, treat the whole name as g2.
+        parts <- strsplit(sname, sep_dash, fixed = TRUE)[[1L]]
+        if (length(parts) >= 2L) {
+          g1_val <- parts[[1L]]
+          g2_val <- paste(parts[-1L], collapse = sep_dash)
+        } else {
+          g1_val <- ""
+          g2_val <- sname
+        }
         # Sanitised id for linkedTo (spaces -> underscores).
         safe_id <- paste0("statgl_grp_", gsub("[^A-Za-z0-9_]", "_", g2_val))
 
-        series_list[[i]]$color <- g2_color_map[[g2_val]]
-        series_list[[i]]$name  <- g2_val
+        series_list[[i]]$color    <- g2_color_map[[g2_val]]
+        series_list[[i]]$name     <- g2_val
+        # Stash g1 for downstream consumers (tooltip, series_tags).
+        series_list[[i]]$g1_label <- g1_val
 
-        is_left <- !is.null(left_prefix) && startsWith(sname, left_prefix)
-        if (is_left) {
-          # Hide from legend but link so clicking the right-side legend item
-          # also toggles this series.
+        if (g2_val %in% seen_g2) {
           series_list[[i]]$showInLegend <- FALSE
           series_list[[i]]$linkedTo     <- safe_id
         } else {
           series_list[[i]]$id <- safe_id
+          seen_g2 <- c(seen_g2, g2_val)
         }
 
         if (!is.null(dodge_placements)) {
@@ -988,6 +1081,93 @@ statgl_plot <- function(
     }
   }
 
+  # --- series_tags ----------------------------------------------
+  # Attach a `tags` map to each Highcharts series. Tags are looked up from
+  # `df` keyed by the (g1) group column. The per-series lookup key is:
+  #   * single-group charts: series$name (= the group value)
+  #   * two-group charts:    series$g1_label (set in the palette pass;
+  #                           series$name has been renamed to the g2 value
+  #                           so we can't key on it).
+  # Downstream JS can read `series.options.tags[<tag>]` to drive filtering
+  # without relying on series-name matching.
+  #
+  # No-op for ungrouped charts (no per-series key).
+  if (!is.null(series_tags) && length(series_tags) > 0L && has_group) {
+
+    if (!is.list(series_tags) || is.null(names(series_tags)) ||
+        any(!nzchar(names(series_tags)))) {
+      stop(
+        "`series_tags` must be a named list, e.g. ",
+        "list(station = \"weather station\").",
+        call. = FALSE
+      )
+    }
+
+    # group_expr was reassigned to g1 when c(g1, g2) was detected, so this
+    # picks up the right column in both single- and two-group cases.
+    group_name  <- rlang::as_name(group_expr)
+    series_list <- chart$x$hc_opts$series
+    if (is.null(series_list)) series_list <- list()
+
+    if (length(series_list) > 0L && group_name %in% names(df)) {
+      group_vec_chr <- as.character(df[[group_name]])
+
+      for (tag_idx in seq_along(series_tags)) {
+        tag_name <- names(series_tags)[[tag_idx]]
+        col_name <- series_tags[[tag_idx]]
+
+        if (!is.character(col_name) || length(col_name) != 1L) {
+          stop(
+            "`series_tags$", tag_name, "` must be a single column name ",
+            "(string).",
+            call. = FALSE
+          )
+        }
+        if (!col_name %in% names(df)) {
+          stop(
+            "`series_tags` column \"", col_name, "\" not found in `df`.",
+            call. = FALSE
+          )
+        }
+
+        tag_vec_chr <- as.character(df[[col_name]])
+
+        # Build group -> tag-value lookup. Warn if non-unique within a group.
+        split_tag <- split(tag_vec_chr, group_vec_chr)
+        lookup    <- vapply(split_tag, function(v) {
+          u <- unique(v[!is.na(v)])
+          if (length(u) == 0L) NA_character_
+          else if (length(u) == 1L) u
+          else {
+            warning(
+              "`series_tags` column \"", col_name, "\" is not 1:1 with ",
+              "group \"", group_name, "\"; using first value (\"", u[[1L]],
+              "\").",
+              call. = FALSE
+            )
+            u[[1L]]
+          }
+        }, character(1))
+
+        for (j in seq_along(series_list)) {
+          key <- if (has_fill_group) {
+            as.character(series_list[[j]]$g1_label)
+          } else {
+            as.character(series_list[[j]]$name)
+          }
+          if (is.na(key) || !nzchar(key)) next
+          if (!key %in% names(lookup)) next
+          if (is.null(series_list[[j]]$tags)) {
+            series_list[[j]]$tags <- list()
+          }
+          series_list[[j]]$tags[[tag_name]] <- unname(lookup[[key]])
+        }
+      }
+
+      chart$x$hc_opts$series <- series_list
+    }
+  }
+
   # --- height ----------------------------------------------------
   chart <- highcharter::hc_chart(chart, height = height)
 
@@ -995,13 +1175,6 @@ statgl_plot <- function(
   # `legend_position`: one of top/bottom/left/right places the legend;
   # anything else (including NULL/FALSE/"none") hides it.
   legend_args <- list(itemStyle = list(color = "#7d7d7d"))
-
-  if (has_fill_group) {
-    legend_args$title <- list(
-      text  = rlang::as_name(fill_group_expr),
-      style = list(color = "#7d7d7d", fontWeight = "bold")
-    )
-  }
 
   legend_position_lc <- if (
     is.character(legend_position) && length(legend_position) == 1L

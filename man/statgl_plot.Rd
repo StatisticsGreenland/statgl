@@ -14,7 +14,7 @@ statgl_plot(
   title = NULL,
   subtitle = NULL,
   caption = NULL,
-  show_last_value = FALSE,
+  show_last_value = TRUE,
   xlab = NULL,
   ylab = NULL,
   tooltip = NULL,
@@ -28,6 +28,7 @@ statgl_plot(
   palette = "main",
   palette_reverse = FALSE,
   pyramid = NULL,
+  series_tags = NULL,
   highlight = NULL,
   height = 300,
   legend_position = "bottom",
@@ -54,20 +55,27 @@ values
 
 \item{group}{Optional bare column name, or a two-variable expression
 \code{c(g1, g2)}, used to split data into series. When a single name is
-supplied the behaviour is unchanged. When \code{c(g1, g2)} is supplied, \code{g1}
-is the pyramid-split variable (determines left/right side) and \code{g2} is
-the fill dimension: each \code{g2} value becomes a sub-bar with a consistent
-colour across both pyramid sides. See \code{position} for layout control.}
+supplied the behaviour is unchanged. When \code{c(g1, g2)} is supplied,
+\code{g1} drives the series split (one series per unique \code{g1} value) and
+\code{g2} drives colour and the legend: every \code{g1} series sharing a \code{g2}
+value gets the same colour, and the legend collapses to one entry per
+\code{g2} value (the first series for each \code{g2} is the legend
+representative; the rest are \code{linkedTo} it). Two-group composes with
+\code{pyramid}: in pyramid mode \code{g1} is the pyramid-split variable (the two
+sides) and \code{g2} is the fill dimension; in non-pyramid mode it's the
+general "groups by \code{g1}, colour by \code{g2}" overlay (e.g. multiple
+stations crossed with a min/max metric). See \code{palette} for the
+colour-per-\code{g2}
+syntax and \code{position} for layout control.}
 
 \item{title, subtitle, caption}{Optional text annotations added via
 \code{\link[highcharter:hc_title]{highcharter::hc_title()}}, \code{\link[highcharter:hc_subtitle]{highcharter::hc_subtitle()}} and
 \code{\link[highcharter:hc_caption]{highcharter::hc_caption()}}. Titles and subtitles are left-aligned;
 captions are right-aligned.}
 
-\item{show_last_value}{Logical; defaults \code{FALSE}. If \code{TRUE}, adds data labels
+\item{show_last_value}{Logical; defaults \code{TRUE}. Adds data labels
 for the final point of each \code{"line"}, \code{"spline"} and \code{"area"} series, or
-for all
-bars in \code{"bar"} / \code{"column"} charts.}
+for all bars in \code{"bar"} / \code{"column"} charts.}
 
 \item{xlab, ylab}{Axis labels. If \code{NULL} or \code{""}, no axis title is shown and
 any automatic titles inferred by \code{\link[highcharter:hchart]{highcharter::hchart()}} are disabled.}
@@ -111,7 +119,14 @@ so sub-bars mirror symmetrically around zero.}
 \code{"main"}, \code{"winter"}, \code{"autumn"}), or
 \item a character vector of colour hex codes to pass directly to
 \code{\link[highcharter:hc_colors]{highcharter::hc_colors()}}.
-}}
+}
+
+For two-group charts (\code{group = c(g1, g2)}), \code{palette} additionally
+accepts a \strong{named character vector} mapping \code{g2} values directly
+to colours, e.g.
+\code{palette = c(Maks = "#fa8b2a", Min = "#2caffe")}. When the names
+cover all \code{g2} levels, that map is used as-is; otherwise the vector
+or named palette is ramped across \code{length(g2)} colours.}
 
 \item{palette_reverse}{Logical; if \code{TRUE}, reverse the palette when a named
 Statgl palette is used. Ignored when \code{palette} is a vector of hex colours.
@@ -159,6 +174,31 @@ orientation, equivalent to applying \code{ggplot2::coord_flip()}). For
 age 0 sits at the bottom. When \code{x} has more than ~30 distinct values
 and \code{height} is not passed explicitly, height is scaled up to as tall as
 is allowed.}
+
+\item{series_tags}{Optional named list of length-1 character entries mapping
+tag names to column names in \code{df}. For each series in the resulting chart,
+the tag is set to the (unique) value of the named column among the rows
+that produced that series. The tag is written into the Highcharts series
+options as \verb{series.tags[<tag_name>]}, which downstream JS (e.g. the
+\code{statglshortcodes} \code{filter} shortcode) can read to drive page-wide
+filtering and visibility without relying on series-name matching.
+
+Typical use: \code{series_tags = list(station = "weather station")} on a chart
+grouped by \verb{weather station}. The tag's source column is usually the
+\code{group} column, but any column that is 1:1 with the group will work; a
+warning is issued if the column is non-unique within a series (the first
+value is used).
+
+For two-group charts (\code{group = c(g1, g2)}), tags are keyed by the \code{g1}
+value: each (g1, g2) series is tagged with the (unique) tag-column value
+for rows matching that g1 level. This lets the climate-style use case
+\verb{group = c(weather station, measure)} +
+\code{series_tags = list(station = "weather station")} produce series that
+all carry \code{tags.station = "Nuuk"} (etc.) so a page-level station filter
+matches both the max and min series for that station.
+
+Ignored when the chart has no grouped series (single-series charts have
+no natural per-series key to tag).}
 
 \item{highlight}{Optional character vector of labels to visually
 emphasise. Dispatch depends on chart shape:
