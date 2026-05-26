@@ -1,4 +1,34 @@
+# statgl (development version)
+
 # statgl 0.5.2.9003
+
+* `statgl_plot()` gains heatmap support via `type = "heatmap"`. Opt-in
+  only — never inferred. `x` and `y` map to the (categorical) heatmap
+  axes and a new `value` argument names the numeric column driving cell
+  colour; `value` defaults to the literal column `value` and is ignored
+  for all other chart types. `palette` is ramped into a continuous
+  [highcharter::hc_colorAxis()] (evenly-spaced stops in `[0, 1]`); when
+  `palette` doesn't resolve a usable hex vector the fallback is a subtle
+  light-grey → Statgl blue ramp. `show_last_value = TRUE` (the default)
+  prints the cell value inside each cell with `color = "contrast"` so
+  labels stay readable across the colour range. The tooltip reads
+  `this.point.value` and resolves x/y indices through
+  `xAxis.categories` / `yAxis.categories` so categorical axes render
+  with the label rather than the index. `group`, `pyramid`, and
+  `highlight` are not supported on heatmaps and now error or warn
+  explicitly. Example:
+  `statgl_plot(df, year, month, type = "heatmap", palette = "aurora",
+              digits = 1, suffix = " °C")`.
+
+* `statgl_plot()`'s negative-`y` warning is now gated on `pyramid =`.
+  Previously the function warned for every chart whose `y` column
+  contained negative values, on the (overzealous) assumption that
+  Statgl charts should always be non-negative. The check now only fires
+  when pyramid mode is active — that's the case where pre-negative
+  input actually breaks something (pyramid mirrors one side by negating
+  it; a `y` that's already negative produces a broken pyramid).
+  Negative values on lines, columns, areas, scatter, etc. no longer
+  produce a warning.
 
 * `statgl_plot()` gains a `series_tags` argument for attaching arbitrary
   per-series metadata to the resulting Highcharts series. Pass a named
@@ -57,7 +87,9 @@
 * Replaced the en dashes in two-group pyramid series-name separators
   with `–` R string escapes, and the em dash in one comment with
   `--`, so `R CMD check` no longer warns about non-ASCII characters in
-  `statgl_plot.R`. User-visible labels are unchanged.
+  `statgl_plot.R`. User-visible labels are unchanged. The en dash used
+  as a missing-value placeholder in the new heatmap tooltip is also
+  written as `–` for the same reason.
 
 # statgl 0.5.2.9000
 

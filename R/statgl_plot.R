@@ -10,6 +10,11 @@
 #'
 #' @param df A data frame.
 #' @param x,y Bare column names for x and y aesthetics. `y` defaults to `value`.
+#'   For `type = "heatmap"`, both `x` and `y` are treated as categorical axes
+#'   and the numeric cell value comes from `value` instead.
+#' @param value Bare column name for the cell-colour aesthetic in
+#'   `type = "heatmap"`. Defaults to `value`. Ignored for all other chart
+#'   types.
 #' @param type Optional string specifying the chart type. If `NULL`, the type is
 #'   inferred from the structure of `x`:
 #'   * `"line"` if `x` is `Date`/`POSIXct` or an integer-like numeric with many
@@ -17,6 +22,13 @@
 #'   * `"column"` if `x` is a factor/character or numeric with few distinct
 #'     values
 #'   * `"scatter"` otherwise.
+#'
+#'   `type = "heatmap"` is opt-in: it is never inferred and must be passed
+#'   explicitly. In heatmap mode `x` and `y` map to the (categorical) axes,
+#'   `value` is mapped to cell colour via a [highcharter::hc_colorAxis()]
+#'   ramped from `palette`, and the chart is laid out as a grid of cells.
+#'   `group`, `pyramid`, `position`, `stacking`, `highlight`, and
+#'   `series_tags` are not supported on heatmaps and will error or warn.
 #' @param name Optional series name passed to [highcharter::hchart()].
 #' @param group Optional bare column name, or a two-variable expression
 #'   `c(g1, g2)`, used to split data into series. When a single name is
@@ -184,6 +196,7 @@ statgl_plot <- function(
   df,
   x,
   y = value,
+  value = value,
   type = NULL,
   name = NULL,
   group = NULL,
@@ -239,7 +252,18 @@ statgl_plot <- function(
   # --- mapping ---------------------------------------------------
   x_expr <- rlang::enexpr(x)
   y_expr <- rlang::enexpr(y)
+  value_expr <- rlang::enexpr(value)
   group_expr <- rlang::enexpr(group)
+
+  # Heatmap is opt-in: never inferred. The flag drives several branches
+  # below (mapping, palette -> colorAxis, tooltip, cell dataLabels), and
+  # disables features that don't compose with heatmaps (group, pyramid,
+  # highlight, stacking, position, series_tags).
+  is_heatmap <- identical(type, "heatmap")
+
+  # Computed early so the y-validation block below can gate on it. The
+  # pyramid setup block further down re-uses the same flag.
+  pyramid_on <- !is.null(pyramid) && !identical(pyramid, FALSE)
 
   # Two-group: c(g1, g2) -- g1 is the pyramid split, g2 is the fill dimension.
   # Strip g2 out early so all existing pyramid/mapping logic runs on g1 only.
@@ -258,7 +282,19 @@ statgl_plot <- function(
   has_group <- !rlang::is_missing(group_expr) &&
     !identical(group_expr, rlang::expr(NULL))
 
-  mapping_expr <- if (has_group) {
+  if (is_heatmap && (has_group || has_fill_group)) {
+    stop(
+      "`group` is not supported with `type = \"heatmap\"`. ",
+      "Heatmaps draw one cell per (x, y) pair coloured by `value`.",
+      call. = FALSE
+    )
+  }
+
+  mapping_expr <- if (is_heatmap) {
+    rlang::expr(
+      highcharter::hcaes(!!x_expr, !!y_expr, value = !!value_expr)
+    )
+  } else if (has_group) {
     rlang::expr(
       highcharter::hcaes(!!x_expr, !!y_expr, group = !!group_expr)
     )
@@ -271,19 +307,22 @@ statgl_plot <- function(
   mapping <- rlang::eval_tidy(mapping_expr)
 
   # --- y validation ---------------------------------------------
-  # Warn (don't error) if the input y has negative values. This runs on
-  # the *original* y, before any pyramid mirroring, so the check is about
-  # what the user actually passed in. Only fires when y resolves to a bare
-  # column name -- expression y's (e.g. `y = log(value)`) are left alone.
-  if (rlang::is_symbol(y_expr)) {
+  # Pyramid mode negates one side of `y` to mirror it across zero, so a `y`
+  # that already contains negative values produces a broken pyramid (the
+  # negation cancels out). Warn in that case so the user notices. For all
+  # other chart types negative y is fine -- a line dipping below zero, a
+  # column going downward etc. are perfectly valid -- so the check is
+  # gated on `pyramid_on`. Expression y's (e.g. `y = log(value)`) are
+  # left alone since we can't introspect them statically.
+  if (pyramid_on && rlang::is_symbol(y_expr)) {
     y_name_check <- rlang::as_name(y_expr)
     if (y_name_check %in% names(df)) {
       y_vals_check <- df[[y_name_check]]
       if (is.numeric(y_vals_check) && any(y_vals_check < 0, na.rm = TRUE)) {
         warning(
           "`y` column \"", y_name_check, "\" contains negative values. ",
-          "`statgl_plot()` expects non-negative y; the chart may render ",
-          "unexpectedly.",
+          "Pyramid mode mirrors one side across zero; pre-negative input ",
+          "will produce a broken pyramid.",
           call. = FALSE
         )
       }
@@ -294,8 +333,15 @@ statgl_plot <- function(
   # Resolve pyramid early so we can mutate `df` *before* hchart() builds
   # series. Uses the same `group =` column as the rest of the function -- it is
   # a modifier on a grouped chart, not its own grouping mechanism.
-  pyramid_on     <- !is.null(pyramid) && !identical(pyramid, FALSE)
+  # `pyramid_on` is set further up so the y-validation block can read it.
   pyramid_levels <- NULL
+
+  if (pyramid_on && is_heatmap) {
+    stop(
+      "`pyramid` is not supported with `type = \"heatmap\"`.",
+      call. = FALSE
+    )
+  }
 
   if (pyramid_on) {
     if (!has_group) {
@@ -594,6 +640,31 @@ statgl_plot <- function(
       chart,
       formatter = highcharter::JS(tooltip)
     )
+  } else if (is_heatmap) {
+    # Heatmap tooltip: cell value lives at this.point.value (not this.y),
+    # and this.point.x / this.point.y are *indices* into the categorical
+    # axes, so resolve them through xAxis.categories / yAxis.categories
+    # when those are present (numeric axes fall back to the raw values).
+    pf_js <- highcharter::JS(sprintf(
+      'function() {
+         var xCats = (this.series && this.series.xAxis) ? this.series.xAxis.categories : null;
+         var yCats = (this.series && this.series.yAxis) ? this.series.yAxis.categories : null;
+         var xLab = (xCats && xCats[this.point.x] != null) ? xCats[this.point.x] : this.point.x;
+         var yLab = (yCats && yCats[this.point.y] != null) ? yCats[this.point.y] : this.point.y;
+         var v = (this.point.value == null) ? "\u2013" :
+           Highcharts.numberFormat(this.point.value, %d, "%s", "%s") + "%s";
+         return xLab + " / " + yLab + ": " + v;
+       }',
+      digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+    chart <- highcharter::hc_tooltip(
+      chart,
+      shared = FALSE,
+      pointFormatter = pf_js
+    )
   } else if (has_fill_group && pyramid_on && !is.null(pyramid_levels)) {
     # Two-group pyramid: show the g1 side label (gender / left-right) so the
     # reader knows which side they're hovering. y < 0 = left side = g1_left.
@@ -721,7 +792,33 @@ statgl_plot <- function(
   series_opts <- list()
 
   if (isTRUE(show_last_value)) {
-    if (type %in% c("line", "spline", "area")) {
+    if (is_heatmap) {
+      # One label per cell with the cell's value. `color = "contrast"` lets
+      # Highcharts pick black or white per cell based on background
+      # brightness so labels stay readable across the colorAxis range.
+      chart <- highcharter::hc_plotOptions(
+        chart,
+        heatmap = list(
+          dataLabels = list(
+            enabled = TRUE,
+            style = list(
+              color = "contrast",
+              textOutline = "none"
+            ),
+            formatter = highcharter::JS(sprintf(
+              'function() {
+                 if (this.point.value == null) return null;
+                 return Highcharts.numberFormat(this.point.value, %d, "%s", "%s") + "%s";
+               }',
+              digits,
+              decimal_mark,
+              big_mark,
+              suffix_js
+            ))
+          )
+        )
+      )
+    } else if (type %in% c("line", "spline", "area")) {
       series_opts$dataLabels <- list(
         enabled = TRUE,
         style = list(
@@ -782,7 +879,61 @@ statgl_plot <- function(
   # skip palette in that specific case to avoid wasted work.
   skip_palette_for_highlight <- !is.null(highlight) &&
     !has_group && type %in% c("bar", "column")
-  if (!is.null(palette) && !skip_palette_for_highlight) {
+
+  if (is_heatmap) {
+    # Heatmap: palette drives a continuous colorAxis instead of per-series
+    # colours. Resolve `palette` to a hex vector the same way the
+    # per-series path does (named statgl palette, raw hex vector, or
+    # fallback), then turn it into evenly-spaced stops in [0, 1] for
+    # Highcharts' colorAxis. Highcharts derives min/max from the data, so
+    # we don't set them here.
+    base_pal <- NULL
+    if (is.character(palette) && length(palette) == 1L &&
+        exists("statgl_palettes", inherits = TRUE)) {
+      pal_list <- get("statgl_palettes", inherits = TRUE)
+      base_pal <- pal_list[[palette]]
+      if (is.null(base_pal)) {
+        warning(
+          "Palette '", palette,
+          "' not found in statgl_palettes; using a default heatmap ramp."
+        )
+      } else if (isTRUE(palette_reverse)) {
+        base_pal <- rev(base_pal)
+      }
+    } else if (is.character(palette) && length(palette) > 1L) {
+      base_pal <- if (isTRUE(palette_reverse)) rev(palette) else palette
+    }
+    if (is.null(base_pal) || length(base_pal) == 0L) {
+      # Subtle sequential default (light -> Statgl blue).
+      base_pal <- c("#f5f7fa", "#2caffe")
+    }
+
+    n_col <- length(base_pal)
+    stops <- if (n_col == 1L) {
+      list(list(0, base_pal[[1]]), list(1, base_pal[[1]]))
+    } else {
+      lapply(seq_len(n_col), function(i) {
+        list((i - 1L) / (n_col - 1L), base_pal[[i]])
+      })
+    }
+
+    chart <- highcharter::hc_colorAxis(
+      chart,
+      stops = stops,
+      labels = list(
+        style = list(color = neutral_ink),
+        formatter = highcharter::JS(sprintf(
+          'function() {
+             return Highcharts.numberFormat(this.value, %d, "%s", "%s") + "%s";
+           }',
+          digits,
+          decimal_mark,
+          big_mark,
+          suffix_js
+        ))
+      )
+    )
+  } else if (!is.null(palette) && !skip_palette_for_highlight) {
     series_list <- chart$x$hc_opts$series
     if (is.null(series_list)) series_list <- list()
 
@@ -932,7 +1083,12 @@ statgl_plot <- function(
   #                             alpha, thicken stroke on matched
   #   * ungrouped bar/column -> orange for matched, grey for rest
   #   * anything else        -> warn (nothing meaningful to single out)
-  if (!is.null(highlight) && has_fill_group) {
+  if (!is.null(highlight) && is_heatmap) {
+    warning(
+      "`highlight` is not supported with `type = \"heatmap\"`; ignored.",
+      call. = FALSE
+    )
+  } else if (!is.null(highlight) && has_fill_group) {
     warning(
       "`highlight` is not supported with two-variable `group = c(g1, g2)`.",
       call. = FALSE

@@ -8,6 +8,7 @@ statgl_plot(
   df,
   x,
   y = value,
+  value = value,
   type = NULL,
   name = NULL,
   group = NULL,
@@ -39,7 +40,13 @@ statgl_plot(
 \arguments{
 \item{df}{A data frame.}
 
-\item{x, y}{Bare column names for x and y aesthetics. \code{y} defaults to \code{value}.}
+\item{x, y}{Bare column names for x and y aesthetics. \code{y} defaults to \code{value}.
+For \code{type = "heatmap"}, both \code{x} and \code{y} are treated as categorical axes
+and the numeric cell value comes from \code{value} instead.}
+
+\item{value}{Bare column name for the cell-colour aesthetic in
+\code{type = "heatmap"}. Defaults to \code{value}. Ignored for all other chart
+types.}
 
 \item{type}{Optional string specifying the chart type. If \code{NULL}, the type is
 inferred from the structure of \code{x}:
@@ -49,7 +56,14 @@ distinct values
 \item \code{"column"} if \code{x} is a factor/character or numeric with few distinct
 values
 \item \code{"scatter"} otherwise.
-}}
+}
+
+\code{type = "heatmap"} is opt-in: it is never inferred and must be passed
+explicitly. In heatmap mode \code{x} and \code{y} map to the (categorical) axes,
+\code{value} is mapped to cell colour via a \code{\link[highcharter:hc_colorAxis]{highcharter::hc_colorAxis()}}
+ramped from \code{palette}, and the chart is laid out as a grid of cells.
+\code{group}, \code{pyramid}, \code{position}, \code{stacking}, \code{highlight}, and
+\code{series_tags} are not supported on heatmaps and will error or warn.}
 
 \item{name}{Optional series name passed to \code{\link[highcharter:hchart]{highcharter::hchart()}}.}
 
