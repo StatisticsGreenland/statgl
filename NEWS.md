@@ -1,5 +1,14 @@
 # statgl (development version)
 
+* `statgl_plot()` removes the default Highcharts border around bars and
+  columns (`borderWidth = 0`). The 1 px outline was visually noisy,
+  particularly in dark mode where the contrast made it prominent.
+
+* `statgl_plot()` now reflows the Highcharts chart inside a
+  `requestAnimationFrame` callback after render. Fixes charts appearing
+  at ~3/4 width when lazy-rendered inside a `shorty` shortcode
+  (IntersectionObserver / `<template>` path) until the window is resized.
+
 # statgl 0.5.2.9003
 
 * `statgl_plot()` gains heatmap support via `type = "heatmap"`. Opt-in

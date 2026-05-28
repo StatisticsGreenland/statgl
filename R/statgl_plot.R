@@ -867,6 +867,11 @@ statgl_plot <- function(
     series_opts$marker <- list(enabled = FALSE)
   }
 
+  # remove bar/column border (looks especially bad in dark mode)
+  if (type %in% c("bar", "column")) {
+    series_opts$borderWidth <- 0
+  }
+
   if (length(series_opts) > 0) {
     chart <- highcharter::hc_plotOptions(chart, series = series_opts)
   }
@@ -1431,6 +1436,16 @@ statgl_plot <- function(
       if (mql.addEventListener) mql.addEventListener("change", applyOutline);
       else if (mql.addListener) mql.addListener(applyOutline); // Safari fallback
     }
+
+    // Reflow after the browser has calculated layout. When a chart is
+    // lazy-rendered inside a shorty <template> (IntersectionObserver path),
+    // HTMLWidgets.staticRender() fires before the browser runs a layout pass
+    // on the newly-appended content, so Highcharts measures the wrong
+    // container width. requestAnimationFrame defers to after the first paint.
+    requestAnimationFrame(function() {
+      var c = findChart();
+      if (c) { try { c.reflow(); } catch(e) {} }
+    });
   }
   '
   )
