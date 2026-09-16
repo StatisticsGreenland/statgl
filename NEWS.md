@@ -1,5 +1,17 @@
 # statgl (development version)
 
+* `is_greenland_api()` now recognises any `*.stat.gl` host as Statistics
+  Greenland's PXWeb API, not only `bank.stat.gl`. Previously, table
+  lookups against a non-canonical host — e.g. the test statbank set via
+  `options(statgl.api_url = "http://testbank.stat.gl/...")` — silently
+  fell back to generic-PXWeb behaviour: the table ID's 3rd character
+  wasn't canonicalised to `X` (`BEDSTA` stayed `BEDSTA` instead of
+  becoming `BEXSTA`) and the language wasn't inferred from it, so
+  `statgl_fetch()`/`statgl_url()` for `D`/`N`/`E`-suffixed table IDs
+  failed with "Table ... not found". `X`-suffixed IDs happened to work
+  either way, which is why this went unnoticed. Behaviour for
+  `bank.stat.gl` and for non-Greenland PXWeb APIs is unchanged.
+
 * `statgl_plot()` removes the default Highcharts border around bars and
   columns (`borderWidth = 0`). The 1 px outline was visually noisy,
   particularly in dark mode where the contrast made it prominent.

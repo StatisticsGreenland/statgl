@@ -43,8 +43,13 @@ test_that("is_greenland_api recognises Statistics Greenland URLs", {
   expect_true(is_greenland_api("https://bank.stat.gl/api/v1/en/Greenland/"))
   expect_true(is_greenland_api("http://bank.stat.gl:443/api/v1/en/Greenland/"))
   expect_true(is_greenland_api("https://bank.stat.gl/api/v2/da/Greenland/"))
+  expect_true(is_greenland_api("https://bank.stat.gl:443/api/v1/da/Greenland/PR/x.px"))
+  expect_true(is_greenland_api("https://sub.stat.gl/api/v1/da/Greenland/"))
   expect_false(is_greenland_api("https://api.scb.se/OV0104/v1/doris/en/ssd/"))
   expect_false(is_greenland_api("https://example.com/api/v1/en/"))
+  expect_false(is_greenland_api("https://pxweb.nordicstatistics.org/api/v1/en/"))
+  expect_false(is_greenland_api("https://evilstat.gl/api/v1/"))
+  expect_false(is_greenland_api("https://stat.gl.evil.com/api/v1/"))
 })
 
 test_that("infer_lang_from_url extracts the language segment", {

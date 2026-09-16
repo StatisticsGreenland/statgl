@@ -95,7 +95,7 @@ statgl_api_url <- function() {
 # Does an api_url point at Statistics Greenland's PXWeb instance?
 # Used to decide whether the language-character trick in table IDs applies.
 is_greenland_api <- function(api_url) {
-  grepl("^https?://bank\\.stat\\.gl.*?/api/v", api_url)
+  grepl("^https?://([a-z0-9-]+\\.)*stat\\.gl(:[0-9]+)?/.*api/v", api_url)
 }
 
 # Pull the language segment out of a PXWeb api_url (the bit between
