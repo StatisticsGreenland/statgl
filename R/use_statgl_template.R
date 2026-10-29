@@ -1,7 +1,9 @@
 #' Create a statgl Quarto document from template
 #'
 #' Generates a new `.qmd` file based on the `statglshortcodes` template.
-#' The extension is installed if missing. The filename is derived from
+#' The extension is installed if missing, and the site-root files the
+#' extension's HTML template expects (`site.js`, `GSLogo.png`,
+#' `favicon.ico`) are copied to the working directory. The filename is derived from
 #' the provided title using [janitor::make_clean_names()]. The YAML
 #' `title` and optional `subtitle` fields are populated automatically,
 #' and the file is opened in the editor.
@@ -36,13 +38,20 @@ use_statgl_template <- function(title, subtitle) {
     message("Installed statgl shortcodes in '_extensions' folder")
   }
 
-  source_file <- file.path(
-    ext_path,
-    "statgl_template"
-  )
+  source_file <- file.path(ext_path, "statgl_template.qmd")
 
   if (!file.exists(source_file)) {
     stop("Template file not found inside extension.")
+  }
+
+  # template.html refers to /site.js, /GSLogo.png and the favicon at the
+  # project root, as in statwww. Copy them next to the page so a standalone
+  # project renders with the real navbar and footer.
+  for (root_file in c("site.js", "GSLogo.png", "favicon.ico")) {
+    src <- file.path(ext_path, root_file)
+    if (file.exists(src) && !file.exists(root_file)) {
+      file.copy(src, root_file)
+    }
   }
 
   lines <- readLines(source_file)

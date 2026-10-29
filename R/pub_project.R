@@ -18,7 +18,8 @@ pub_project <- function(path, ...) {
     path,
     file.copy(
       "_extensions/StatisticsGreenland/statglshortcodes/_quarto",
-      "_quarto.yml"
+      "_quarto.yml",
+      overwrite = TRUE
     )
   )
 
