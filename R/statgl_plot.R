@@ -79,6 +79,11 @@
 #'   provided and `big.mark` and `decimal.mark` are not explicitly overridden,
 #'   they are derived from `locale` (`"da"`/`"kl"` -> decimal `","`, big mark
 #'   `"."`; other values -> decimal `"."`, big mark `","`).
+#' @param axis_labels How the y-axis tick labels are written. `"abbrev"`
+#'   (default) keeps Highcharts' metric abbreviations (`1k`, `2.5M`).
+#'   `"full"` writes the whole number with `big.mark`/`decimal.mark` and
+#'   `suffix`, so `1000` reads `1.000` on a Danish page. Can be set once per
+#'   session with `options(statgl.axis_labels = "full")`.
 #' @param stacking Optional stacking mode for `"area"`, `"column"` and `"bar"`
 #'   charts. One of `"normal"` or `"percent"`, or `NULL` (no stacking).
 #'   Superseded by `position` when both are set.
@@ -222,6 +227,7 @@ statgl_plot <- function(
   big.mark = ".",
   decimal.mark = ",",
   locale = NULL,
+  axis_labels = getOption("statgl.axis_labels", "abbrev"),
   stacking = NULL,
   position = NULL,
   palette = "main",
@@ -259,6 +265,7 @@ statgl_plot <- function(
   decimal_mark <- decimal.mark
   big_mark <- big.mark
   suffix_js <- js_escape(suffix)
+  axis_labels <- match.arg(axis_labels, c("abbrev", "full"))
 
   # --- mapping ---------------------------------------------------
   x_expr <- rlang::enexpr(x)
@@ -610,6 +617,17 @@ statgl_plot <- function(
          return Highcharts.numberFormat(Math.abs(this.value), %d, "%s", "%s") + "%s";
        }',
       digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+  } else if (axis_labels == "full") {
+    # Whole numbers with the chart's own separators instead of 1k / 1M.
+    # -1 decimals lets Highcharts keep whatever decimals the tick needs.
+    y_axis_labels$formatter <- highcharter::JS(sprintf(
+      'function() {
+         return Highcharts.numberFormat(this.value, -1, "%s", "%s") + "%s";
+       }',
       decimal_mark,
       big_mark,
       suffix_js

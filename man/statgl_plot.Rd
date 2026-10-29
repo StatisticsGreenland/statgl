@@ -24,6 +24,7 @@ statgl_plot(
   big.mark = ".",
   decimal.mark = ",",
   locale = NULL,
+  axis_labels = getOption("statgl.axis_labels", "abbrev"),
   stacking = NULL,
   position = NULL,
   palette = "main",
@@ -116,6 +117,12 @@ formatting. Defaults to \code{","}.}
 provided and \code{big.mark} and \code{decimal.mark} are not explicitly overridden,
 they are derived from \code{locale} (\code{"da"}/\code{"kl"} -> decimal \code{","}, big mark
 \code{"."}; other values -> decimal \code{"."}, big mark \code{","}).}
+
+\item{axis_labels}{How the y-axis tick labels are written. \code{"abbrev"}
+(default) keeps Highcharts' metric abbreviations (\code{1k}, \code{2.5M}).
+\code{"full"} writes the whole number with \code{big.mark}/\code{decimal.mark} and
+\code{suffix}, so \code{1000} reads \code{1.000} on a Danish page. Can be set once per
+session with \code{options(statgl.axis_labels = "full")}.}
 
 \item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"} and \code{"bar"}
 charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).

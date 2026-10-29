@@ -1,5 +1,12 @@
 # statgl (development version)
 
+* `statgl_plot()` gains `axis_labels = c("abbrev", "full")`. `"full"` writes
+  y-axis ticks as whole numbers with the chart's `big.mark`/`decimal.mark`
+  and `suffix` (`1.000` instead of `1k` on a Danish page). The default is
+  unchanged; `options(statgl.axis_labels = "full")` switches a whole site.
+  Replaces page-local helpers such as `hc_yAxis(labels = list(format =
+  "{value:,.0f}"))`, which ignore the locale and print `1,000`.
+
 * RStudio project template "Ny side til stat.gl" (`pub_project()` /
   `use_statgl_template()`) works again: the template file is looked up as
   `statgl_template.qmd` (the missing extension made every run fail with
