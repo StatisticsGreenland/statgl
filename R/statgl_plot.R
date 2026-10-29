@@ -48,6 +48,16 @@
 #'   [highcharter::hc_title()], [highcharter::hc_subtitle()] and
 #'   [highcharter::hc_caption()]. Titles and subtitles are left-aligned;
 #'   captions are right-aligned.
+#' @param alt Optional accessible name for the chart. The rendered widget
+#'   container gets `role="img"` and `aria-label = alt`, and the Highcharts
+#'   SVG is hidden from assistive technology (`aria-hidden="true"`), so a
+#'   screen reader announces one named image instead of every axis label,
+#'   legend entry and data label in sequence. `NULL` (the default) derives
+#'   the name from `title` and `subtitle` (HTML tags stripped). When no text
+#'   is available the container gets no `role`/`aria-label` and the SVG is
+#'   still hidden, i.e. the chart is treated as decorative — pass `alt`
+#'   whenever the title is rendered outside the chart. `alt = ""` forces the
+#'   decorative treatment.
 #' @param show_last_value Logical; defaults `TRUE`. Adds data labels
 #'   for the final point of each `"line"`, `"spline"` and `"area"` series, or
 #'   for all bars in `"bar"` / `"column"` charts.
@@ -69,6 +79,11 @@
 #'   provided and `big.mark` and `decimal.mark` are not explicitly overridden,
 #'   they are derived from `locale` (`"da"`/`"kl"` -> decimal `","`, big mark
 #'   `"."`; other values -> decimal `"."`, big mark `","`).
+#' @param axis_labels How the y-axis tick labels are written. `"abbrev"`
+#'   (default) keeps Highcharts' metric abbreviations (`1k`, `2.5M`).
+#'   `"full"` writes the whole number with `big.mark`/`decimal.mark` and
+#'   `suffix`, so `1000` reads `1.000` on a Danish page. Can be set once per
+#'   session with `options(statgl.axis_labels = "full")`.
 #' @param stacking Optional stacking mode for `"area"`, `"column"` and `"bar"`
 #'   charts. One of `"normal"` or `"percent"`, or `NULL` (no stacking).
 #'   Superseded by `position` when both are set.
@@ -212,6 +227,7 @@ statgl_plot <- function(
   big.mark = ".",
   decimal.mark = ",",
   locale = NULL,
+  axis_labels = getOption("statgl.axis_labels", "abbrev"),
   stacking = NULL,
   position = NULL,
   palette = "main",
@@ -222,6 +238,7 @@ statgl_plot <- function(
   height = 300,
   legend_position = "bottom",
   download_data = TRUE,
+  alt = NULL,
   ...
 ) {
   # --- number formatting setup -----------------------------------
@@ -248,6 +265,7 @@ statgl_plot <- function(
   decimal_mark <- decimal.mark
   big_mark <- big.mark
   suffix_js <- js_escape(suffix)
+  axis_labels <- match.arg(axis_labels, c("abbrev", "full"))
 
   # --- mapping ---------------------------------------------------
   x_expr <- rlang::enexpr(x)
@@ -599,6 +617,17 @@ statgl_plot <- function(
          return Highcharts.numberFormat(Math.abs(this.value), %d, "%s", "%s") + "%s";
        }',
       digits,
+      decimal_mark,
+      big_mark,
+      suffix_js
+    ))
+  } else if (axis_labels == "full") {
+    # Whole numbers with the chart's own separators instead of 1k / 1M.
+    # -1 decimals lets Highcharts keep whatever decimals the tick needs.
+    y_axis_labels$formatter <- highcharter::JS(sprintf(
+      'function() {
+         return Highcharts.numberFormat(this.value, -1, "%s", "%s") + "%s";
+       }',
       decimal_mark,
       big_mark,
       suffix_js
@@ -1385,10 +1414,40 @@ statgl_plot <- function(
     )
   }
 
+  # --- accessibility ----------------------------------------------
+  # One accessible name for the whole chart; the SVG itself is hidden
+  # from AT in the onRender hook below. NULL -> derive from title /
+  # subtitle; "" -> decorative (no name). Stored on `x` so the JS side
+  # can read it as `x.statgl_a11y.label`.
+  a11y_label <- alt
+  if (is.null(a11y_label)) {
+    a11y_label <- paste(c(title, subtitle), collapse = ". ")
+    a11y_label <- gsub("<[^>]+>", "", a11y_label)
+  }
+  a11y_label <- trimws(as.character(a11y_label))[1]
+  if (is.na(a11y_label) || !nzchar(a11y_label)) a11y_label <- NULL
+  chart$x$statgl_a11y <- list(label = a11y_label)
+
   chart <- htmlwidgets::onRender(
     chart,
     '
   function(el, x) {
+
+    // Accessibility: hide the Highcharts SVG (axis labels, legend, data
+    // labels incl. the textOutline copies) from assistive technology and
+    // expose the widget container as a single named image instead.
+    function applyA11y() {
+      var svgs = el.querySelectorAll("svg");
+      for (var i = 0; i < svgs.length; i++) {
+        svgs[i].setAttribute("aria-hidden", "true");
+      }
+      var label = x && x.statgl_a11y && x.statgl_a11y.label;
+      if (label) {
+        el.setAttribute("role", "img");
+        el.setAttribute("aria-label", label);
+      }
+    }
+    applyA11y();
 
     function findChart() {
       // Highcharts keeps all charts in Highcharts.charts

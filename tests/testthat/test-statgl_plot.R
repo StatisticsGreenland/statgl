@@ -95,3 +95,54 @@ test_that("character x infers 'column'", {
   p <- statgl_plot(df_cat, x = cat, y = value)
   expect_equal(p$x$hc_opts$series[[1]]$type, "column")
 })
+
+# ---------------------------------------------------------------------------
+# Accessibility: alt / aria-label
+# ---------------------------------------------------------------------------
+
+test_that("alt is stored for the onRender hook", {
+  p <- statgl_plot(df_line, x = time, y = value, alt = "Line of values")
+  expect_identical(p$x$statgl_a11y$label, "Line of values")
+})
+
+test_that("alt falls back to title and subtitle, tags stripped", {
+  p <- statgl_plot(
+    df_line, x = time, y = value,
+    title = "<b>Ledige</b>", subtitle = "September 2026"
+  )
+  expect_identical(p$x$statgl_a11y$label, "Ledige. September 2026")
+})
+
+test_that("no alt and no title gives a NULL label; alt = '' forces NULL", {
+  p <- statgl_plot(df_line, x = time, y = value)
+  expect_null(p$x$statgl_a11y$label)
+  p <- statgl_plot(df_line, x = time, y = value, title = "T", alt = "")
+  expect_null(p$x$statgl_a11y$label)
+})
+
+test_that("onRender callback hides the SVG and labels the container", {
+  p  <- statgl_plot(df_line, x = time, y = value)
+  js <- p$jsHooks$render[[1]]$code
+  expect_true(grepl("aria-hidden", js, fixed = TRUE))
+  expect_true(grepl("\"role\", \"img\"", js, fixed = TRUE))
+  expect_true(grepl("x.statgl_a11y.label", js, fixed = TRUE))
+})
+
+test_that("axis_labels = 'full' formats y-axis ticks with the chart separators", {
+  df <- data.frame(time = 2020:2022, value = c(1000, 2000, 3000))
+  hc <- statgl_plot(df, time, axis_labels = "full", suffix = " kr.")
+  fmt <- hc$x$hc_opts$yAxis$labels$formatter
+  expect_s3_class(fmt, "JS_EVAL")
+  expect_match(as.character(fmt), 'numberFormat(this.value, -1, ",", ".")', fixed = TRUE)
+  expect_match(as.character(fmt), '" kr."', fixed = TRUE)
+
+  hc_en <- statgl_plot(df, time, axis_labels = "full", locale = "en")
+  expect_match(as.character(hc_en$x$hc_opts$yAxis$labels$formatter), '-1, ".", ","', fixed = TRUE)
+
+  hc_default <- statgl_plot(df, time)
+  expect_null(hc_default$x$hc_opts$yAxis$labels$formatter)
+
+  withr::with_options(list(statgl.axis_labels = "full"), {
+    expect_false(is.null(statgl_plot(df, time)$x$hc_opts$yAxis$labels$formatter))
+  })
+})

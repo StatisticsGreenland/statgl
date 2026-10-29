@@ -1,5 +1,38 @@
 # statgl (development version)
 
+* `statgl_plot()` gains `axis_labels = c("abbrev", "full")`. `"full"` writes
+  y-axis ticks as whole numbers with the chart's `big.mark`/`decimal.mark`
+  and `suffix` (`1.000` instead of `1k` on a Danish page). The default is
+  unchanged; `options(statgl.axis_labels = "full")` switches a whole site.
+  Replaces page-local helpers such as `hc_yAxis(labels = list(format =
+  "{value:,.0f}"))`, which ignore the locale and print `1,000`.
+
+* RStudio project template "Ny side til stat.gl" (`pub_project()` /
+  `use_statgl_template()`) works again: the template file is looked up as
+  `statgl_template.qmd` (the missing extension made every run fail with
+  "Template file not found"), and `site.js`, `GSLogo.png` and `favicon.ico`
+  are copied to the project root so the page renders with the real
+  stat.gl navbar and footer. Requires statgl-shortcodes >= 1.1.0.
+
+* Accessibility (WCAG 2.2 AA), attribute-level only — nothing changes
+  visually:
+  * `statgl_plot()` gains `alt`. The widget container is exposed to
+    assistive technology as one `role="img"` with `aria-label = alt`
+    (falling back to `title`/`subtitle`), and the Highcharts SVG gets
+    `aria-hidden="true"`, so screen readers no longer announce every axis
+    label, legend entry and data label (including the `textOutline`
+    copies) as the chart's name. With no `alt` and no title the chart is
+    treated as decorative; callers that render the title outside the
+    chart should pass `alt`.
+  * `statgl_table()` and `statgl_crosstable()` emit `scope="col"` (or
+    `scope="colgroup"` on spanning headers) on header cells, and render
+    the first column as `<th scope="row">` when it is a label column
+    (character/factor, or numeric coerced via `.year_col`; always in
+    `statgl_crosstable()`). Row-group label rows are left as they were.
+    The row header carries an inline `font-weight:normal` so the
+    browser's default bold `<th>` does not alter the look; `.bold_rows`
+    still wins.
+
 * `is_greenland_api()` now recognises any `*.stat.gl` host as Statistics
   Greenland's PXWeb API, not only `bank.stat.gl`. Previously, table
   lookups against a non-canonical host — e.g. the test statbank set via

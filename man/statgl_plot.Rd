@@ -24,6 +24,7 @@ statgl_plot(
   big.mark = ".",
   decimal.mark = ",",
   locale = NULL,
+  axis_labels = getOption("statgl.axis_labels", "abbrev"),
   stacking = NULL,
   position = NULL,
   palette = "main",
@@ -34,6 +35,7 @@ statgl_plot(
   height = 300,
   legend_position = "bottom",
   download_data = TRUE,
+  alt = NULL,
   ...
 )
 }
@@ -115,6 +117,12 @@ formatting. Defaults to \code{","}.}
 provided and \code{big.mark} and \code{decimal.mark} are not explicitly overridden,
 they are derived from \code{locale} (\code{"da"}/\code{"kl"} -> decimal \code{","}, big mark
 \code{"."}; other values -> decimal \code{"."}, big mark \code{","}).}
+
+\item{axis_labels}{How the y-axis tick labels are written. \code{"abbrev"}
+(default) keeps Highcharts' metric abbreviations (\code{1k}, \code{2.5M}).
+\code{"full"} writes the whole number with \code{big.mark}/\code{decimal.mark} and
+\code{suffix}, so \code{1000} reads \code{1.000} on a Danish page. Can be set once per
+session with \code{options(statgl.axis_labels = "full")}.}
 
 \item{stacking}{Optional stacking mode for \code{"area"}, \code{"column"} and \code{"bar"}
 charts. One of \code{"normal"} or \code{"percent"}, or \code{NULL} (no stacking).
@@ -247,6 +255,17 @@ Nuuk bar; \code{statgl_plot(df, time, value, group = commodity, highlight = "I a
 Highcharts' \code{export-data.js} module and adds a context-menu button with
 options to download the chart data as CSV, XLS, or view the data table
 inline. Set to \code{FALSE} to suppress the export menu entirely.}
+
+\item{alt}{Optional accessible name for the chart. The rendered widget
+container gets \code{role="img"} and \code{aria-label = alt}, and the Highcharts
+SVG is hidden from assistive technology (\code{aria-hidden="true"}), so a
+screen reader announces one named image instead of every axis label,
+legend entry and data label in sequence. \code{NULL} (the default) derives
+the name from \code{title} and \code{subtitle} (HTML tags stripped). When no text
+is available the container gets no \code{role}/\code{aria-label} and the SVG is
+still hidden, i.e. the chart is treated as decorative — pass \code{alt}
+whenever the title is rendered outside the chart. \code{alt = ""} forces the
+decorative treatment.}
 
 \item{...}{Additional arguments forwarded to \code{\link[highcharter:hchart]{highcharter::hchart()}}.
 Names that collide with arguments \code{statgl_plot()} already sets

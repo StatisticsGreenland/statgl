@@ -17,7 +17,9 @@ Invisibly returns the path to the created \code{.qmd} file.
 }
 \description{
 Generates a new \code{.qmd} file based on the \code{statglshortcodes} template.
-The extension is installed if missing. The filename is derived from
+The extension is installed if missing, and the site-root files the
+extension's HTML template expects (\code{site.js}, \code{GSLogo.png},
+\code{favicon.ico}) are copied to the working directory. The filename is derived from
 the provided title using \code{\link[janitor:make_clean_names]{janitor::make_clean_names()}}. The YAML
 \code{title} and optional \code{subtitle} fields are populated automatically,
 and the file is opened in the editor.
