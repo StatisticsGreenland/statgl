@@ -34,6 +34,7 @@ statgl_plot(
   height = 300,
   legend_position = "bottom",
   download_data = TRUE,
+  alt = NULL,
   ...
 )
 }
@@ -247,6 +248,17 @@ Nuuk bar; \code{statgl_plot(df, time, value, group = commodity, highlight = "I a
 Highcharts' \code{export-data.js} module and adds a context-menu button with
 options to download the chart data as CSV, XLS, or view the data table
 inline. Set to \code{FALSE} to suppress the export menu entirely.}
+
+\item{alt}{Optional accessible name for the chart. The rendered widget
+container gets \code{role="img"} and \code{aria-label = alt}, and the Highcharts
+SVG is hidden from assistive technology (\code{aria-hidden="true"}), so a
+screen reader announces one named image instead of every axis label,
+legend entry and data label in sequence. \code{NULL} (the default) derives
+the name from \code{title} and \code{subtitle} (HTML tags stripped). When no text
+is available the container gets no \code{role}/\code{aria-label} and the SVG is
+still hidden, i.e. the chart is treated as decorative — pass \code{alt}
+whenever the title is rendered outside the chart. \code{alt = ""} forces the
+decorative treatment.}
 
 \item{...}{Additional arguments forwarded to \code{\link[highcharter:hchart]{highcharter::hchart()}}.
 Names that collide with arguments \code{statgl_plot()} already sets

@@ -1,5 +1,24 @@
 # statgl (development version)
 
+* Accessibility (WCAG 2.2 AA), attribute-level only — nothing changes
+  visually:
+  * `statgl_plot()` gains `alt`. The widget container is exposed to
+    assistive technology as one `role="img"` with `aria-label = alt`
+    (falling back to `title`/`subtitle`), and the Highcharts SVG gets
+    `aria-hidden="true"`, so screen readers no longer announce every axis
+    label, legend entry and data label (including the `textOutline`
+    copies) as the chart's name. With no `alt` and no title the chart is
+    treated as decorative; callers that render the title outside the
+    chart should pass `alt`.
+  * `statgl_table()` and `statgl_crosstable()` emit `scope="col"` (or
+    `scope="colgroup"` on spanning headers) on header cells, and render
+    the first column as `<th scope="row">` when it is a label column
+    (character/factor, or numeric coerced via `.year_col`; always in
+    `statgl_crosstable()`). Row-group label rows are left as they were.
+    The row header carries an inline `font-weight:normal` so the
+    browser's default bold `<th>` does not alter the look; `.bold_rows`
+    still wins.
+
 * `is_greenland_api()` now recognises any `*.stat.gl` host as Statistics
   Greenland's PXWeb API, not only `bank.stat.gl`. Previously, table
   lookups against a non-canonical host — e.g. the test statbank set via

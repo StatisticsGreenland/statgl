@@ -643,3 +643,88 @@ test_that("hide_mobile_css wraps the table with media-query style", {
   expect_match(out, "td:nth-child\\(4\\)")
   expect_match(out, "th:nth-child\\(2\\)")
 })
+
+# ---- accessibility: header scopes -------------------------------------------
+
+test_that("add_table_scopes adds col/colgroup scopes and row headers", {
+  add_table_scopes <- statgl:::add_table_scopes
+  html <- paste0(
+    "<table><thead>",
+    "<tr><th style=\"a\" colspan=\"1\"></th>",
+    "<th style=\"b\" colspan=\"2\"><div>M</div></th></tr>",
+    "<tr><th style=\"text-align:left;\"> time </th>",
+    "<th style=\"text-align:right;\"> K </th></tr>",
+    "</thead><tbody>",
+    "<tr grouplength=\"1\"><td colspan=\"2\"><strong>G</strong></td></tr>",
+    "<tr>\n  <td style=\"text-align:left;font-weight: bold;\"> 2020 </td>",
+    "\n  <td style=\"text-align:right;\"> 2 </td></tr>",
+    "<tr><td> plain </td><td> 7 </td></tr>",
+    "</tbody></table>"
+  )
+  out <- add_table_scopes(html)
+
+  expect_match(out, "<th scope=\"col\" style=\"a\" colspan=\"1\">",
+               fixed = TRUE)
+  expect_match(out, "<th scope=\"colgroup\" style=\"b\" colspan=\"2\">",
+               fixed = TRUE)
+  expect_match(out, "<th scope=\"col\" style=\"text-align:left;\"> time </th>",
+               fixed = TRUE)
+  # Group-label row is untouched
+  expect_match(out, "<td colspan=\"2\"><strong>G</strong></td>", fixed = TRUE)
+  # First body cell becomes a row header, bold from row_spec still wins
+  expect_match(
+    out,
+    paste0("<th scope=\"row\" style=\"font-weight:normal;text-align:left;",
+           "font-weight: bold;\"> 2020 </th>"),
+    fixed = TRUE
+  )
+  expect_match(
+    out, "<th scope=\"row\" style=\"font-weight:normal;\"> plain </th>",
+    fixed = TRUE
+  )
+  # Other body cells stay <td>
+  expect_match(out, "<td style=\"text-align:right;\"> 2 </td>", fixed = TRUE)
+  expect_match(out, "<td> 7 </td>", fixed = TRUE)
+})
+
+test_that("add_table_scopes leaves body cells alone when row_headers = FALSE", {
+  add_table_scopes <- statgl:::add_table_scopes
+  html <- paste0(
+    "<table><thead><tr><th> a </th></tr></thead>",
+    "<tbody><tr><td> 1 </td></tr></tbody></table>"
+  )
+  out  <- add_table_scopes(html, row_headers = FALSE)
+  expect_match(out, "<th scope=\"col\"> a </th>", fixed = TRUE)
+  expect_match(out, "<td> 1 </td>", fixed = TRUE)
+  expect_no_match(out, "scope=\"row\"", fixed = TRUE)
+})
+
+test_that("statgl_table emits row headers for a label first column only", {
+  df_lab <- data.frame(
+    year  = c("2020", "2021"), value = c(1, 2), stringsAsFactors = FALSE
+  )
+  html <- statgl_table(df_lab, .as_html = TRUE)
+  expect_match(html, "scope=\"col\"", fixed = TRUE)
+  expect_match(html, "<th scope=\"row\"", fixed = TRUE)
+
+  df_num <- data.frame(a = c(1, 2), b = c(3, 4))
+  html   <- statgl_table(df_num, .as_html = TRUE)
+  expect_match(html, "scope=\"col\"", fixed = TRUE)
+  expect_no_match(html, "scope=\"row\"", fixed = TRUE)
+
+  # .year_col turns a numeric stub into a label column
+  df_yr <- data.frame(year = 2020:2021, value = c(1, 2))
+  html  <- statgl_table(df_yr, .year_col = year, .as_html = TRUE)
+  expect_match(html, "<th scope=\"row\"", fixed = TRUE)
+})
+
+test_that("statgl_crosstable emits col scopes and row headers", {
+  html <- statgl_crosstable(make_long_df(), gender, .as_html = TRUE)
+  expect_match(html, "scope=\"col\"", fixed = TRUE)
+  expect_match(html, "<th scope=\"row\"", fixed = TRUE)
+  # scope="row" is on the first cell of each row only
+  expect_equal(
+    lengths(regmatches(html, gregexpr("scope=\"row\"", html, fixed = TRUE))),
+    2L
+  )
+})

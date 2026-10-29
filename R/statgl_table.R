@@ -131,6 +131,12 @@ statgl_table <- function(
     }
   }
 
+  # --- row headers: first column is a label column, not a measure ---------
+  # Decided before 0/NA replacement turns every column into character.
+  # `.year_col` has already been coerced to character above, so a year
+  # stub counts as a label.
+  row_headers <- ncol(df) >= 1L && !is.numeric(df[[1]])
+
   # --- replace 0s -----------------------------------------------------------
   zero_repl <- resolve_replace_0s(.replace_0s)
   if (!is.null(zero_repl)) {
@@ -242,9 +248,11 @@ statgl_table <- function(
     )
   }
 
-  # --- Finalise HTML (footnotes injected into <tfoot>, then mobile CSS) ---
-  html_out <- inject_footnotes(hide_mobile_css(as.character(k), hide_idx),
-                               .footnote)
+  # --- Finalise HTML (header scopes, footnotes in <tfoot>, mobile CSS) -----
+  html_out <- as.character(k) %>%
+    add_table_scopes(row_headers = row_headers) %>%
+    hide_mobile_css(hide_idx) %>%
+    inject_footnotes(.footnote)
 
   if (isTRUE(.as_html)) return(html_out)
   statgl_table_widget(html_out)
@@ -735,9 +743,13 @@ statgl_crosstable <- function(
     hide_idx <- which(hide_mask) + stub_span
   }
 
-  # --- Finalise HTML (footnotes injected into <tfoot>, then mobile CSS) ---
-  html_out <- inject_footnotes(hide_mobile_css(as.character(kb), hide_idx),
-                               .footnote)
+  # --- Finalise HTML (header scopes, footnotes in <tfoot>, mobile CSS) -----
+  # The stub column(s) are categorical by construction, so the first one
+  # is always a row header.
+  html_out <- as.character(kb) %>%
+    add_table_scopes(row_headers = TRUE) %>%
+    hide_mobile_css(hide_idx) %>%
+    inject_footnotes(.footnote)
 
   if (isTRUE(.as_html)) return(html_out)
   statgl_table_widget(html_out)
@@ -919,6 +931,69 @@ inject_footnotes <- function(html, footnotes) {
     "\n</tfoot>"
   )
   sub("</table>", paste0(tfoot, "\n</table>"), html, fixed = TRUE)
+}
+
+# Add header scopes to a rendered HTML kable string (WCAG 1.3.1).
+#
+# * every <th> in <thead> gets scope="col", or scope="colgroup" when it
+#   spans several columns (kableExtra::add_header_above rows);
+# * when `row_headers` is TRUE, the first <td> of each <tbody> row becomes
+#   <th scope="row">. Group-label rows (td colspan) are left alone.
+#
+# Attribute-level only: the kable inline styles are kept, and the row
+# header gets `font-weight:normal` prepended so the browser's default
+# bold <th> does not change the look; a later `font-weight: bold` from
+# kableExtra::row_spec() still wins.
+add_table_scopes <- function(html, row_headers = TRUE) {
+  re_thead <- "(?s)<thead>.*?</thead>"
+  re_tbody <- "(?s)<tbody>.*?</tbody>"
+
+  m <- regexpr(re_thead, html, perl = TRUE)
+  if (m > 0) {
+    thead <- regmatches(html, m)
+    thead <- gsub(
+      "<th((?:(?!scope=)[^>])*?\\scolspan=\"(?:[2-9]|[1-9][0-9]+)\"[^>]*)>",
+      "<th scope=\"colgroup\"\\1>",
+      thead,
+      perl = TRUE
+    )
+    thead <- gsub(
+      "<th(?=[\\s>])(?![^>]*\\sscope=)",
+      "<th scope=\"col\"",
+      thead,
+      perl = TRUE
+    )
+    regmatches(html, m) <- thead
+  }
+
+  if (!isTRUE(row_headers)) return(html)
+
+  m <- regexpr(re_tbody, html, perl = TRUE)
+  if (m < 0) return(html)
+
+  tbody <- regmatches(html, m)
+  tbody <- gsub(
+    "(<tr[^>]*>\\s*)<td((?:(?!colspan)[^>])*)>(.*?)</td>",
+    "\\1<th scope=\"row\"\\2>\\3</th>",
+    tbody,
+    perl = TRUE
+  )
+  # Neutralise the default bold on <th>. Prepended to kable's own style=
+  # attribute (when present) so later declarations still take precedence.
+  tbody <- gsub(
+    "<th scope=\"row\"([^>]*?)\\sstyle=\"",
+    "<th scope=\"row\"\\1 style=\"font-weight:normal;",
+    tbody,
+    perl = TRUE
+  )
+  tbody <- gsub(
+    "<th scope=\"row\"(?![^>]*style=)",
+    "<th scope=\"row\" style=\"font-weight:normal;\"",
+    tbody,
+    perl = TRUE
+  )
+  regmatches(html, m) <- tbody
+  html
 }
 
 # Wrap a rendered HTML kable string with a media-query <style> block
