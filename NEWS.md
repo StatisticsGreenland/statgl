@@ -1,5 +1,10 @@
 # statgl (development version)
 
+* New `i18n()`: an identity function that marks a string literal in R code
+  for translation, so a site's twin generator can collect it and rewrite it
+  in generated language twins (`case_when(... ~ i18n("Folkeskole"))`). For
+  displayed labels only; match Statbank values on codes, not translations.
+
 * `statgl_plot()` gains `axis_labels = c("abbrev", "full")`. `"full"` writes
   y-axis ticks as whole numbers with the chart's `big.mark`/`decimal.mark`
   and `suffix` (`1.000` instead of `1k` on a Danish page). The default is
