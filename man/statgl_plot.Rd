@@ -119,7 +119,7 @@ they are derived from \code{locale} (\code{"da"}/\code{"kl"} -> decimal \code{",
 \code{"."}; other values -> decimal \code{"."}, big mark \code{","}).}
 
 \item{axis_labels}{How the y-axis tick labels are written. \code{"abbrev"}
-(default) keeps Highcharts' metric abbreviations (\code{1k}, \code{2.5M}).
+(default) keeps Highcharts' metric abbreviations (\verb{1k}, \verb{2.5M}).
 \code{"full"} writes the whole number with \code{big.mark}/\code{decimal.mark} and
 \code{suffix}, so \code{1000} reads \code{1.000} on a Danish page. Can be set once per
 session with \code{options(statgl.axis_labels = "full")}.}

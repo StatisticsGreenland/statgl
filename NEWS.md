@@ -1,5 +1,10 @@
 # statgl (development version)
 
+* New `i18n()`: an identity function that marks a string literal in R code
+  for translation, so a site's twin generator can collect it and rewrite it
+  in generated language twins (`case_when(... ~ i18n("Folkeskole"))`). For
+  displayed labels only; match Statbank values on codes, not translations.
+
 * `statgl_plot()` gains `axis_labels = c("abbrev", "full")`. `"full"` writes
   y-axis ticks as whole numbers with the chart's `big.mark`/`decimal.mark`
   and `suffix` (`1.000` instead of `1k` on a Danish page). The default is
@@ -8,11 +13,9 @@
   "{value:,.0f}"))`, which ignore the locale and print `1,000`.
 
 * RStudio project template "Ny side til stat.gl" (`pub_project()` /
-  `use_statgl_template()`) works again: the template file is looked up as
-  `statgl_template.qmd` (the missing extension made every run fail with
-  "Template file not found"), and `site.js`, `GSLogo.png` and `favicon.ico`
-  are copied to the project root so the page renders with the real
-  stat.gl navbar and footer. Requires statgl-shortcodes >= 1.1.0.
+  `use_statgl_template()`): `site.js`, `GSLogo.png` and `favicon.ico` are
+  copied to the project root so the page renders with the real stat.gl
+  navbar and footer. Requires statgl-shortcodes >= 1.1.0.
 
 * Accessibility (WCAG 2.2 AA), attribute-level only — nothing changes
   visually:

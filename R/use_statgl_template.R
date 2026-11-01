@@ -38,7 +38,8 @@ use_statgl_template <- function(title, subtitle) {
     message("Installed statgl shortcodes in '_extensions' folder")
   }
 
-  source_file <- file.path(ext_path, "statgl_template.qmd")
+  # No extension: the file is kept out of Quarto's render set on purpose.
+  source_file <- file.path(ext_path, "statgl_template")
 
   if (!file.exists(source_file)) {
     stop("Template file not found inside extension.")
